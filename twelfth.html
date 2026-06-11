@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lentot - 향후 계획</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: #07091A;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    color: #ffffff;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── aurora background blobs ── */
+  .bg-blob { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; }
+  .bg-blob-1 { width: 560px; height: 560px; background: radial-gradient(circle, rgba(158,123,53,0.28) 0%, transparent 70%); top: -180px; left: -120px; filter: blur(80px); animation: blob1 24s ease-in-out infinite; }
+  .bg-blob-2 { width: 480px; height: 480px; background: radial-gradient(circle, rgba(30,60,140,0.32) 0%, transparent 70%); bottom: -120px; right: -100px; filter: blur(80px); animation: blob2 30s ease-in-out infinite; }
+  .bg-blob-3 { width: 380px; height: 380px; background: radial-gradient(circle, rgba(158,123,53,0.18) 0%, transparent 70%); top: 45%; left: 58%; filter: blur(70px); animation: blob3 20s ease-in-out infinite; }
+
+  @keyframes blob1 { 0%,100%{transform:translate(0,0)} 33%{transform:translate(90px,70px)} 66%{transform:translate(-50px,130px)} }
+  @keyframes blob2 { 0%,100%{transform:translate(0,0)} 40%{transform:translate(-110px,-90px)} 70%{transform:translate(70px,-130px)} }
+  @keyframes blob3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-120px,-70px)} }
+
+  /* ── Agenda Strip ── */
+  .agenda-strip {
+    height: 44px; flex-shrink: 0; display: flex;
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    opacity: 0; transition: opacity 200ms ease;
+    position: relative; z-index: 10; width: 100%;
+  }
+  .agenda-strip.visible { opacity: 1; }
+  .strip-item {
+    flex: 1; height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2px; padding: 0 4px;
+    border-right: 1px solid rgba(255,255,255,0.05); overflow: hidden;
+  }
+  .strip-item:last-child { border-right: 0; }
+  .strip-item.active { background: rgba(158,123,53,0.13); border-bottom: 2px solid #C4973F; animation: activePulse 1800ms ease-in-out infinite; }
+  @keyframes activePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.035)} }
+  .strip-num { font-size: 11px; font-weight: 800; letter-spacing: 0.05em; color: rgba(255,255,255,0.28); }
+  .strip-label { max-width: 100%; color: rgba(255,255,255,0.2); font-size: 9px; font-weight: 650; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .strip-item.active .strip-num { color: #C4973F; }
+  .strip-item.active .strip-label { color: rgba(196,151,63,0.78); }
+
+  /* flying circle */
+  #fly-head {
+    position: fixed;
+    border-radius: 50%;
+    background: #D7AF5B;
+    z-index: 9999;
+    pointer-events: none;
+    display: none;
+    will-change: top, left, width, height, opacity;
+  }
+
+  .page-container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    flex: 1; width: 100%; min-height: 0;
+    padding: 30px 60px;
+    max-width: 1600px;
+    margin: 0 auto;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 600ms ease, transform 600ms ease;
+  }
+  .page-container.visible { opacity: 1; transform: translateY(0); }
+
+  .header { margin-bottom: 40px; flex-shrink: 0; }
+  .title-tag { color: #D7AF5B; font-size: 15px; font-weight: 800; letter-spacing: 0.24em; margin-bottom: 12px; }
+  .main-title { font-size: 54px; font-weight: 850; letter-spacing: -0.02em; line-height: 1.1; }
+
+  .roadmap-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    min-height: 0;
+  }
+
+  .roadmap-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
+    padding: 40px 32px;
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    box-shadow: 0 24px 48px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    transition: transform 300ms ease, background 300ms ease, border-color 300ms ease, box-shadow 300ms ease;
+  }
+  .roadmap-card:hover {
+    transform: translateY(-8px);
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .roadmap-card::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px;
+    background: #D7AF5B; box-shadow: 0 0 15px rgba(215,175,91,0.8);
+    opacity: 0; transition: opacity 300ms ease;
+  }
+  .roadmap-card.active {
+    background: linear-gradient(180deg, rgba(215, 175, 91, 0.15) 0%, rgba(215, 175, 91, 0.03) 100%);
+    border-color: rgba(215, 175, 91, 0.4);
+    box-shadow: 0 24px 48px rgba(215, 175, 91, 0.15);
+  }
+  .roadmap-card.active::before {
+    opacity: 1;
+  }
+
+  .phase-label {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.1);
+    font-size: 14px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.8);
+    align-self: flex-start;
+    margin-bottom: 24px;
+    transition: background 300ms ease, color 300ms ease;
+  }
+  .roadmap-card.active .phase-label { background: #D7AF5B; color: #07091A; }
+
+  .phase-title { font-size: 32px; font-weight: 850; line-height: 1.25; margin-bottom: 16px; letter-spacing: -0.02em; transition: color 300ms ease; }
+  .roadmap-card.active .phase-title { color: #D7AF5B; }
+  .phase-desc { font-size: 16px; font-weight: 500; color: rgba(255,255,255,0.6); line-height: 1.6; margin-bottom: 32px; word-break: keep-all; }
+
+  .task-list { list-style: none; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+  .task-item { display: flex; align-items: flex-start; gap: 12px; font-size: 17px; font-weight: 600; color: rgba(255,255,255,0.9); line-height: 1.5; word-break: keep-all; }
+  .task-icon { font-size: 20px; flex-shrink: 0; line-height: 1.3; }
+
+  /* stagger animation */
+  .stagger-item { opacity: 0; transform: translateY(20px); transition: opacity 600ms ease, transform 600ms ease; }
+  .page-container.visible .stagger-item { opacity: 1; transform: translateY(0); }
+  .page-container.visible .stagger-item:nth-child(1) { transition-delay: 100ms; }
+  .page-container.visible .stagger-item:nth-child(2) { transition-delay: 250ms; }
+  .page-container.visible .stagger-item:nth-child(3) { transition-delay: 400ms; }
+  .page-container.visible .stagger-item:nth-child(4) { transition-delay: 550ms; }
+
+  .nav-btn { position: fixed; top: 50%; transform: translateY(-50%); z-index: 1000; width: 52px; height: 52px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); color: rgba(255,255,255,0.5); font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 200ms ease; }
+  .nav-btn:hover { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(215,175,91,0.5); transform: translateY(-50%) scale(1.1); }
+  .nav-btn--prev { left: 20px; }
+  .nav-btn--next { right: 20px; }
+</style>
+</head>
+<body>
+
+<div class="bg-blob bg-blob-1"></div>
+<div class="bg-blob bg-blob-2"></div>
+<div class="bg-blob bg-blob-3"></div>
+<div id="fly-head"></div>
+
+<nav class="agenda-strip" id="agenda-strip">
+  <div class="strip-item"><span class="strip-num">01</span><span class="strip-label">문제 정의</span></div>
+  <div class="strip-item"><span class="strip-num">02</span><span class="strip-label">고객 탐색</span></div>
+  <div class="strip-item"><span class="strip-num">03</span><span class="strip-label">인터뷰 검증</span></div>
+  <div class="strip-item"><span class="strip-num">04</span><span class="strip-label">솔루션 &amp; 가치</span></div>
+  <div class="strip-item"><span class="strip-num">05</span><span class="strip-label">경쟁 분석</span></div>
+  <div class="strip-item"><span class="strip-num">06</span><span class="strip-label">수익 구조</span></div>
+  <div class="strip-item active"><span class="strip-num">07</span><span class="strip-label">향후 계획</span></div>
+</nav>
+
+<div class="page-container" id="page-container">
+  <header class="header">
+    <div class="title-tag">07 · 향후 계획</div>
+    <h1 class="main-title">로드맵 &amp; 마일스톤</h1>
+  </header>
+  <main class="roadmap-grid">
+    <article class="roadmap-card active stagger-item">
+      <div class="phase-label">Phase 01</div>
+      <h2 class="phase-title">MVP 테스트<br>&amp; 검증</h2>
+      <p class="phase-desc">기능 동작성 확인 및 초기 유저 확보를 통한 핵심 가설 검증 단계</p>
+      <ul class="task-list">
+        <li class="task-item"><span class="task-icon">✅</span> 핵심 3대 기능 프로토타입 런칭</li>
+        <li class="task-item"><span class="task-icon">✅</span> 타겟 고객(2030 여성) 심층 인터뷰</li>
+        <li class="task-item"><span class="task-icon">🎯</span> 오사카 방문객 대상 베타 테스트 실시</li>
+      </ul>
+    </article>
+    <article class="roadmap-card stagger-item">
+      <div class="phase-label">Phase 02</div>
+      <h2 class="phase-title">오사카 1호점<br>정식 런칭</h2>
+      <p class="phase-desc">검증된 MVP 모델을 바탕으로 현지 오프라인 거점 구축 및 운영</p>
+      <ul class="task-list">
+        <li class="task-item"><span class="task-icon">🏢</span> 현지 물류 및 세탁 파트너십 체결</li>
+        <li class="task-item"><span class="task-icon">👗</span> B2B 의류 브랜드 협찬율 70% 달성</li>
+        <li class="task-item"><span class="task-icon">📈</span> 초기 월 손익분기점(BEP) 돌파</li>
+      </ul>
+    </article>
+    <article class="roadmap-card stagger-item">
+      <div class="phase-label">Phase 03</div>
+      <h2 class="phase-title">서비스 지역<br>본격 확장</h2>
+      <p class="phase-desc">오사카 성공 사례를 바탕으로 일본 주요 관광지로 서비스 지역 확대</p>
+      <ul class="task-list">
+        <li class="task-item"><span class="task-icon">🗾</span> 도쿄, 후쿠오카, 삿포로 지점 오픈</li>
+        <li class="task-item"><span class="task-icon">🤝</span> 대형 여행사 및 항공사 제휴 프로모션</li>
+        <li class="task-item"><span class="task-icon">📱</span> 자체 전용 모바일 앱(App) 정식 출시</li>
+      </ul>
+    </article>
+    <article class="roadmap-card stagger-item">
+      <div class="phase-label">Phase 04</div>
+      <h2 class="phase-title">글로벌<br>스케일업</h2>
+      <p class="phase-desc">아시아를 넘어 전 세계 주요 여행지로 LENTOT 모델 확산</p>
+      <ul class="task-list">
+        <li class="task-item"><span class="task-icon">🌏</span> 대만, 동남아 주요 국가 거점 확보</li>
+        <li class="task-item"><span class="task-icon">🤖</span> AI 기반 날씨·체형 맞춤 자동 코디 추천</li>
+        <li class="task-item"><span class="task-icon">♻️</span> 지속가능한 여행 패션 1위 브랜드 도약</li>
+      </ul>
+    </article>
+  </main>
+</div>
+
+<button class="nav-btn nav-btn--prev" id="nav-prev" aria-label="이전 슬라이드">‹</button>
+<button class="nav-btn nav-btn--next" id="nav-next" aria-label="다음 슬라이드">›</button>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const flyHead = document.getElementById('fly-head');
+  const container = document.getElementById('page-container');
+
+  const fromSim = sessionStorage.getItem('fromSimulation') === '1';
+  const headRectStr = sessionStorage.getItem('headRect');
+  sessionStorage.removeItem('fromSimulation');
+  sessionStorage.removeItem('headRect');
+
+  const TARGET_TOP = 50, TARGET_LEFT = 60, TARGET_SIZE = 20;
+
+  if (fromSim && headRectStr) {
+    const r = JSON.parse(headRectStr);
+    flyHead.style.display = 'block';
+    flyHead.style.top = r.top + 'px';
+    flyHead.style.left = r.left + 'px';
+    flyHead.style.width = r.width + 'px';
+    flyHead.style.height = r.height + 'px';
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const midTop = r.top + (TARGET_TOP - r.top) * 0.4;
+      const midLeft = r.left + (TARGET_LEFT - r.left) * 0.6;
+
+      // 정지 -> 힘겹게 이동 -> 잠깐 멈춤 -> 다시 이동하는 시퀀스
+      const anim = flyHead.animate([
+        { top: r.top + 'px', left: r.left + 'px', width: r.width + 'px', height: r.height + 'px', offset: 0 },
+        { top: r.top + 'px', left: r.left + 'px', width: r.width + 'px', height: r.height + 'px', offset: 0.15, easing: 'cubic-bezier(0.5, -0.4, 0.4, 1.3)' },
+        { top: midTop + 'px', left: midLeft + 'px', width: ((r.width + TARGET_SIZE)/2) + 'px', height: ((r.height + TARGET_SIZE)/2) + 'px', offset: 0.45 },
+        { top: midTop + 'px', left: midLeft + 'px', width: ((r.width + TARGET_SIZE)/2) + 'px', height: ((r.height + TARGET_SIZE)/2) + 'px', offset: 0.6, easing: 'cubic-bezier(0.5, -0.4, 0.4, 1.3)' },
+        { top: TARGET_TOP + 'px', left: TARGET_LEFT + 'px', width: TARGET_SIZE + 'px', height: TARGET_SIZE + 'px', offset: 1 }
+      ], {
+        duration: 2000,
+        fill: 'forwards'
+      });
+
+      anim.onfinish = () => {
+        flyHead.style.top = TARGET_TOP + 'px';
+        flyHead.style.left = TARGET_LEFT + 'px';
+        flyHead.style.width = TARGET_SIZE + 'px';
+        flyHead.style.height = TARGET_SIZE + 'px';
+
+        flyHead.style.opacity = '0';
+        flyHead.style.transition = 'opacity 300ms ease';
+        setTimeout(() => {
+          flyHead.style.display = 'none';
+          document.getElementById('agenda-strip').classList.add('visible');
+          container.classList.add('visible');
+        }, 300);
+      };
+    }));
+  } else {
+    setTimeout(() => {
+      const strip = document.getElementById('agenda-strip');
+      if(strip) strip.classList.add('visible');
+      container.classList.add('visible');
+    }, 100);
+  }
+
+  // 카드 골드 애니메이션 자동 순환 (2초 간격)
+  const cards = document.querySelectorAll('.roadmap-card');
+  let activeIdx = 0;
+  setInterval(() => {
+    cards[activeIdx].classList.remove('active');
+    activeIdx = (activeIdx + 1) % cards.length;
+    cards[activeIdx].classList.add('active');
+  }, 2000);
+
+  let going = false;
+
+  function goPrev() {
+    if (going) return; going = true;
+    container.style.transition = 'opacity 300ms ease';
+    container.style.opacity = '0';
+    setTimeout(() => window.location.href = 'simulation.html', 300);
+  }
+
+  function goNext() {
+    if (going) return; going = true;
+    
+    // 콘텐츠를 흐려지게 하며 페이드 아웃
+    container.style.transition = 'opacity 600ms ease, filter 600ms ease';
+    container.style.opacity = '0';
+    container.style.filter = 'blur(10px)';
+
+    const strip = document.getElementById('agenda-strip');
+    if (strip) {
+      strip.style.transition = 'opacity 300ms ease';
+      strip.style.opacity = '0';
+    }
+
+    // 점(골드볼)을 화면 중앙으로 던지면서 크기를 다시 키움 (index.html 진입 상태처럼)
+    flyHead.style.transition = 'none';
+    flyHead.style.opacity = '1';
+    flyHead.style.display = 'block';
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      flyHead.style.transition = 'top 800ms cubic-bezier(0.65,0,0.35,1), left 800ms cubic-bezier(0.65,0,0.35,1), width 800ms ease, height 800ms ease, transform 800ms ease';
+      flyHead.style.top = '50%';
+      flyHead.style.left = '50%';
+      flyHead.style.width = '55px';
+      flyHead.style.height = '55px';
+      flyHead.style.transform = 'translate(-50%, -50%)';
+
+      // index.html로 자연스러운 리다이렉트
+      setTimeout(() => { window.location.href = 'index.html'; }, 800);
+    }));
+  }
+
+  document.getElementById('nav-prev').addEventListener('click', goPrev);
+  document.getElementById('nav-next').addEventListener('click', goNext);
+
+  document.addEventListener('click', (e) => {
+    const navBtn = e.target.closest && e.target.closest('.nav-btn');
+    if (navBtn) return; // 위 이벤트 리스너에서 처리됨
+    goNext();
+  });
+});
+</script>
+</body>
+</html>

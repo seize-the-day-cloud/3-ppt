@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lentot – Simulation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: #07091A;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    color: #ffffff;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── aurora background blobs ── */
+  .bg-blob { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; }
+  .bg-blob-1 { width: 560px; height: 560px; background: radial-gradient(circle, rgba(158,123,53,0.28) 0%, transparent 70%); top: -180px; left: -120px; filter: blur(80px); animation: blob1 24s ease-in-out infinite; }
+  .bg-blob-2 { width: 480px; height: 480px; background: radial-gradient(circle, rgba(30,60,140,0.32) 0%, transparent 70%); bottom: -120px; right: -100px; filter: blur(80px); animation: blob2 30s ease-in-out infinite; }
+  .bg-blob-3 { width: 380px; height: 380px; background: radial-gradient(circle, rgba(158,123,53,0.18) 0%, transparent 70%); top: 45%; left: 58%; filter: blur(70px); animation: blob3 20s ease-in-out infinite; }
+  
+  @keyframes blob1 { 0%,100%{transform:translate(0,0)} 33%{transform:translate(90px,70px)} 66%{transform:translate(-50px,130px)} }
+  @keyframes blob2 { 0%,100%{transform:translate(0,0)} 40%{transform:translate(-110px,-90px)} 70%{transform:translate(70px,-130px)} }
+  @keyframes blob3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-120px,-70px)} }
+
+  /* ── Agenda Strip ── */
+  .agenda-strip {
+    height: 44px; flex-shrink: 0; display: flex;
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    opacity: 0; transition: opacity 200ms ease;
+    position: relative; z-index: 10; width: 100%;
+  }
+  .agenda-strip.visible { opacity: 1; }
+  .strip-item {
+    flex: 1; height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2px; padding: 0 4px;
+    border-right: 1px solid rgba(255,255,255,0.05); overflow: hidden;
+  }
+  .strip-item:last-child { border-right: 0; }
+  .strip-item.active { background: rgba(158,123,53,0.13); border-bottom: 2px solid #C4973F; animation: activePulse 1800ms ease-in-out infinite; }
+  @keyframes activePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.035)} }
+  .strip-num { font-size: 11px; font-weight: 800; letter-spacing: 0.05em; color: rgba(255,255,255,0.28); }
+  .strip-label { max-width: 100%; color: rgba(255,255,255,0.2); font-size: 9px; font-weight: 650; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .strip-item.active .strip-num { color: #C4973F; }
+  .strip-item.active .strip-label { color: rgba(196,151,63,0.78); }
+
+  /* ── Layout ── */
+  .page-container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    flex: 1; width: 100%; min-height: 0;
+    padding: 30px 60px;
+    max-width: 1600px;
+    margin: 0 auto;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 600ms ease, transform 600ms ease;
+  }
+  .page-container.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── Header ── */
+  .sim-header {
+    margin-bottom: 30px;
+    flex-shrink: 0;
+  }
+  .kicker {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.3em;
+    color: #D7AF5B;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .kicker::before {
+    content: ''; display: inline-block; width: 10px; height: 10px;
+    background: #D7AF5B; border-radius: 50%;
+  }
+  .title { font-size: 42px; font-weight: 850; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 8px; }
+  .subtitle { font-size: 18px; font-weight: 500; color: rgba(255,255,255,0.65); }
+
+  /* ── Main Grid ── */
+  .sim-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 32px;
+    min-height: 0;
+  }
+
+  /* ── Glassmorphism Panels ── */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    box-shadow: 0 24px 48px rgba(0,0,0,0.25);
+  }
+
+  /* ── Left: Controls ── */
+  .controls {
+    display: flex;
+    flex-direction: column;
+    padding: 36px 32px;
+  }
+  
+  .presets-wrapper {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+  .preset-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.7);
+    border-radius: 999px;
+    padding: 12px 0;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 200ms ease;
+  }
+  .preset-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  .preset-btn.active {
+    background: #D7AF5B;
+    border-color: #D7AF5B;
+    color: #07091A;
+    box-shadow: 0 4px 16px rgba(215, 175, 91, 0.3);
+  }
+
+  .sliders {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  .slider-group { display: flex; flex-direction: column; gap: 14px; }
+  .slider-header { display: flex; align-items: center; justify-content: space-between; }
+  .slider-header-left { display: flex; align-items: center; gap: 10px; }
+  .slider-name { font-size: 16px; font-weight: 700; color: #fff; }
+  .slider-tag { 
+    font-size: 11px; font-weight: 800; color: #D7AF5B; 
+    background: rgba(215, 175, 91, 0.15); padding: 4px 8px; border-radius: 6px; 
+  }
+  .slider-val { font-size: 18px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+
+  /* Custom Range Input */
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 6px;
+    background: rgba(255, 255, 255, 0.1); border-radius: 3px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+    background: #D7AF5B; box-shadow: 0 0 12px rgba(215,175,91,0.5); border: 2px solid #fff;
+    transition: transform 100ms ease;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  input[type=range]:focus-visible { outline: 2px solid #D7AF5B; outline-offset: 4px; }
+
+  .footnote {
+    margin-top: 30px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1);
+    font-size: 12px; color: rgba(255,255,255,0.4); line-height: 1.6; word-break: keep-all;
+  }
+
+  /* ── Right: Results ── */
+  .results { display: flex; flex-direction: column; gap: 24px; }
+
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+  }
+  .stat-card {
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 36px 30px; text-align: left;
+  }
+  .stat-icon { font-size: 32px; margin-bottom: 16px; }
+  .stat-label { font-size: 16px; font-weight: 600; color: rgba(255,255,255,0.6); margin-bottom: 8px; }
+  .stat-value { font-size: 48px; font-weight: 850; color: #fff; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 6px; }
+  .stat-value .unit { font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.5); }
+  .stat-sub { margin-top: 12px; font-size: 14px; font-weight: 500; color: rgba(215, 225, 244, 0.7); }
+  .stat-sub .sub-val { font-weight: 800; color: #D7AF5B; font-variant-numeric: tabular-nums; }
+
+  .invest-card {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    padding: 40px 50px; position: relative; overflow: hidden;
+  }
+  .invest-card::before {
+    content: ''; position: absolute; top: 0; left: 10%; width: 80%; height: 3px;
+    background: linear-gradient(90deg, transparent, #D7AF5B, transparent); opacity: 0.8;
+  }
+  .invest-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; }
+  .invest-header h2 { font-size: 28px; font-weight: 800; color: #fff; }
+  .invest-savings { font-size: 18px; font-weight: 600; color: rgba(255,255,255,0.7); background: rgba(215,175,91,0.1); padding: 10px 20px; border-radius: 999px; border: 1px solid rgba(215,175,91,0.3); }
+  .invest-savings .highlight { color: #D7AF5B; font-weight: 850; font-size: 22px; font-variant-numeric: tabular-nums; }
+
+  .bar-row { display: flex; align-items: center; gap: 24px; margin-bottom: 24px; }
+  .bar-row:last-child { margin-bottom: 0; }
+  .bar-label { width: 140px; font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.8); }
+  .bar-track { flex: 1; height: 36px; background: rgba(255,255,255,0.05); border-radius: 18px; overflow: hidden; position: relative; }
+  .bar-fill { height: 100%; border-radius: 18px; display: flex; align-items: center; justify-content: flex-end; padding-right: 16px; transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1); }
+  .bar-fill.b2c { background: rgba(255,255,255,0.2); width: 100%; }
+  .bar-fill.b2b { background: linear-gradient(90deg, #9E7B35, #D7AF5B); box-shadow: inset 0 0 10px rgba(255,255,255,0.2); }
+  .bar-value { width: 120px; text-align: right; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; color: #fff; }
+  .bar-value.highlight { color: #D7AF5B; font-size: 28px; }
+
+  /* Navigation Buttons */
+  .nav-btn {
+    position: fixed; top: 50%; transform: translateY(-50%); z-index: 1000;
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px); color: rgba(255,255,255,0.5); font-size: 26px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 200ms ease;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(215,175,91,0.5); transform: translateY(-50%) scale(1.1); }
+  .nav-btn--prev { left: 20px; }
+  .nav-btn--next { right: 20px; }
+
+  /* ── flying circle ── */
+  #fly-head {
+    position: fixed;
+    border-radius: 50%;
+    background: #D7AF5B;
+    z-index: 9999;
+    pointer-events: none;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-blob bg-blob-1"></div>
+<div class="bg-blob bg-blob-2"></div>
+<div class="bg-blob bg-blob-3"></div>
+
+<div id="fly-head"></div>
+
+<nav class="agenda-strip" id="agenda-strip">
+  <div class="strip-item"><span class="strip-num">01</span><span class="strip-label">문제 정의</span></div>
+  <div class="strip-item"><span class="strip-num">02</span><span class="strip-label">고객 탐색</span></div>
+  <div class="strip-item"><span class="strip-num">03</span><span class="strip-label">인터뷰 검증</span></div>
+  <div class="strip-item"><span class="strip-num">04</span><span class="strip-label">솔루션 &amp; 가치</span></div>
+  <div class="strip-item"><span class="strip-num">05</span><span class="strip-label">경쟁 분석</span></div>
+  <div class="strip-item active"><span class="strip-num">06</span><span class="strip-label">수익 구조</span></div>
+  <div class="strip-item"><span class="strip-num">07</span><span class="strip-label">향후 계획</span></div>
+</nav>
+
+<div class="page-container" id="page-container">
+  <header class="sim-header">
+    <div class="kicker">LIVE SIMULATION · OSAKA NO.1</div>
+    <h1 class="title">초기 투자비 시뮬레이션</h1>
+    <p class="subtitle">가정을 바꾸면 사업 숫자가 어떻게 움직일까?</p>
+  </header>
+
+  <main class="sim-content">
+    <!-- Left: Controls -->
+    <aside class="glass-panel controls">
+      <div class="presets-wrapper">
+        <button type="button" class="preset-btn" data-preset="cons">보수적</button>
+        <button type="button" class="preset-btn active" data-preset="base">기준 (Target)</button>
+        <button type="button" class="preset-btn" data-preset="opt">낙관적</button>
+      </div>
+
+      <div class="sliders">
+        <div class="slider-group">
+          <div class="slider-header">
+            <div class="slider-header-left">
+              <span class="slider-name">서비스 인지율</span>
+              <span class="slider-tag">마케팅</span>
+            </div>
+            <span class="slider-val" id="val-awareness">10%</span>
+          </div>
+          <input type="range" id="in-awareness" min="1" max="30" step="1" value="10" aria-label="서비스 인지율 조정">
+        </div>
+        <div class="slider-group">
+          <div class="slider-header">
+            <div class="slider-header-left">
+              <span class="slider-name">실제 전환율</span>
+              <span class="slider-tag">마케팅</span>
+            </div>
+            <span class="slider-val" id="val-conversion">10%</span>
+          </div>
+          <input type="range" id="in-conversion" min="1" max="30" step="1" value="10" aria-label="실제 전환율 조정">
+        </div>
+        <div class="slider-group">
+          <div class="slider-header">
+            <div class="slider-header-left">
+              <span class="slider-name">B2B 협찬 비율</span>
+              <span class="slider-tag">전략 레버</span>
+            </div>
+            <span class="slider-val" id="val-b2b">70%</span>
+          </div>
+          <input type="range" id="in-b2b" min="0" max="90" step="5" value="70" aria-label="B2B 협찬 비율 조정">
+        </div>
+        <div class="slider-group">
+          <div class="slider-header">
+            <div class="slider-header-left">
+              <span class="slider-name">1회 렌탈가</span>
+              <span class="slider-tag">가격 레버</span>
+            </div>
+            <span class="slider-val" id="val-price">50,000원</span>
+          </div>
+          <input type="range" id="in-price" min="30000" max="80000" step="5000" value="50000" aria-label="1회 렌탈가 조정">
+        </div>
+      </div>
+
+      <div class="footnote">
+        * 오사카 월 한국인 방문객 250,000명 · 2030 비율 60% · 자유여행 비율 80% · 평균 코디 3개 · 회전율 6회/월 · 안전재고 20% · 의류 매입 원가 55,000원 · 세탁단가 3,000원 고정
+      </div>
+    </aside>
+
+    <!-- Right: Results -->
+    <section class="results">
+      <div class="stats-grid" aria-live="polite">
+        <div class="glass-panel stat-card">
+          <div class="stat-icon">👥</div>
+          <div class="stat-label">월 예상 이용자</div>
+          <div class="stat-value"><span id="out-users">0</span><span class="unit">명</span></div>
+        </div>
+        <div class="glass-panel stat-card">
+          <div class="stat-icon">👗</div>
+          <div class="stat-label">필요 초기 재고</div>
+          <div class="stat-value"><span id="out-inventory">0</span><span class="unit">세트</span></div>
+        </div>
+        <div class="glass-panel stat-card">
+          <div class="stat-icon">💰</div>
+          <div class="stat-label">월 예상 매출</div>
+          <div class="stat-value"><span id="out-revenue">0</span><span class="unit">만원</span></div>
+          <div class="stat-sub">월 세탁비 <span class="sub-val" id="out-laundry">0</span>만원</div>
+        </div>
+      </div>
+
+      <div class="glass-panel invest-card">
+        <div class="invest-header">
+          <h2>초기 의류 투자비 시뮬레이션</h2>
+          <div class="invest-savings">협찬으로 <span class="highlight" id="out-savings">0</span>만원 절감!</div>
+        </div>
+        <div class="bars">
+          <div class="bar-row">
+            <div class="bar-label">B2C 단독 구매 시</div>
+            <div class="bar-track">
+              <div class="bar-fill b2c"></div>
+            </div>
+            <div class="bar-value"><span id="out-b2c">0</span>만원</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">B2B 제휴 적용 시</div>
+            <div class="bar-track">
+              <div class="bar-fill b2b" id="bar-b2b"></div>
+            </div>
+            <div class="bar-value highlight"><span id="out-b2b">0</span>만원</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<button class="nav-btn nav-btn--prev" id="nav-prev" aria-label="이전 슬라이드">‹</button>
+<button class="nav-btn nav-btn--next" id="nav-next" aria-label="다음 슬라이드">›</button>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    const strip = document.getElementById("agenda-strip");
+    if (strip) strip.classList.add("visible");
+    document.getElementById("page-container").classList.add("visible");
+  }, 100);
+
+  // Inputs
+  const inAwareness = document.getElementById("in-awareness");
+  const inConversion = document.getElementById("in-conversion");
+  const inB2b = document.getElementById("in-b2b");
+  const inPrice = document.getElementById("in-price");
+
+  // Input Display Values
+  const valAwareness = document.getElementById("val-awareness");
+  const valConversion = document.getElementById("val-conversion");
+  const valB2b = document.getElementById("val-b2b");
+  const valPrice = document.getElementById("val-price");
+
+  // Outputs
+  const outUsers = document.getElementById("out-users");
+  const outInventory = document.getElementById("out-inventory");
+  const outRevenue = document.getElementById("out-revenue");
+  const outLaundry = document.getElementById("out-laundry");
+  const outB2c = document.getElementById("out-b2c");
+  const outB2b = document.getElementById("out-b2b");
+  const outSavings = document.getElementById("out-savings");
+  const barB2b = document.getElementById("bar-b2b");
+
+  const presets = {
+    cons: { awareness: 5, conversion: 5, b2b: 30, price: 45000 },
+    base: { awareness: 10, conversion: 10, b2b: 70, price: 50000 },
+    opt:  { awareness: 15, conversion: 15, b2b: 80, price: 55000 }
+  };
+
+  // State for tweening
+  let currentVals = { users: 0, inventory: 0, revenue: 0, laundry: 0, b2c: 0, b2b: 0, savings: 0 };
+
+  function formatNum(num) {
+    return Math.round(num).toLocaleString('ko-KR');
+  }
+
+  function tweenValue(key, el, endVal, duration = 450) {
+    const startVal = currentVals[key];
+    if (startVal === endVal) return;
+    
+    // Respect prefers-reduced-motion
+    if (window.matchMedia(`(prefers-reduced-motion: reduce)`).matches) {
+      currentVals[key] = endVal;
+      el.textContent = formatNum(endVal);
+      return;
+    }
+
+    let startTime = null;
+    if (el.animation) cancelAnimationFrame(el.animation);
+
+    function step(timestamp) {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      const current = startVal + (endVal - startVal) * ease;
+      
+      currentVals[key] = current;
+      el.textContent = formatNum(current);
+      
+      if (progress < 1) el.animation = requestAnimationFrame(step);
+      else currentVals[key] = endVal; // ensure exact final value
+    }
+    el.animation = requestAnimationFrame(step);
+  }
+
+  function updateSliderBackground(input) {
+    const val = (input.value - input.min) / (input.max - input.min) * 100;
+    input.style.background = `linear-gradient(to right, #D7AF5B ${val}%, rgba(255,255,255,0.1) ${val}%)`;
+  }
+
+  function calculate() {
+    const awareness = parseInt(inAwareness.value) / 100;
+    const conversion = parseInt(inConversion.value) / 100;
+    const b2bRatio = parseInt(inB2b.value) / 100;
+    const price = parseInt(inPrice.value);
+
+    // Update displays
+    valAwareness.textContent = inAwareness.value + "%";
+    valConversion.textContent = inConversion.value + "%";
+    valB2b.textContent = inB2b.value + "%";
+    valPrice.textContent = formatNum(price) + "원";
+
+    [inAwareness, inConversion, inB2b, inPrice].forEach(updateSliderBackground);
+
+    // Core logic
+    const targetAudience = 250000 * 0.6 * 0.8; // 120,000
+    const users = Math.round(targetAudience * awareness * conversion);
+    const demand = users * 3;
+    const inventory = Math.ceil((demand / 6) * 1.2);
+    
+    const revenue = (users * price) / 10000;
+    const laundry = (demand * 3000) / 10000;
+    
+    const b2c = (inventory * 55000) / 10000;
+    const b2b = b2c * (1 - b2bRatio);
+    const savings = b2c - b2b;
+
+    // Animate to new values
+    tweenValue('users', outUsers, users);
+    tweenValue('inventory', outInventory, inventory);
+    tweenValue('revenue', outRevenue, revenue);
+    tweenValue('laundry', outLaundry, laundry);
+    tweenValue('b2c', outB2c, b2c);
+    tweenValue('b2b', outB2b, b2b);
+    tweenValue('savings', outSavings, savings);
+
+    // Bar width update
+    barB2b.style.width = `${(1 - b2bRatio) * 100}%`;
+  }
+
+  // Event Listeners
+  const inputs = [inAwareness, inConversion, inB2b, inPrice];
+  inputs.forEach(input => {
+    input.addEventListener("input", () => {
+      document.querySelectorAll(".preset-btn").forEach(btn => btn.classList.remove("active"));
+      calculate();
+    });
+    // Stop propagation to prevent accidental slide change during slider usage
+    input.addEventListener("keydown", (e) => e.stopPropagation());
+  });
+
+  document.querySelectorAll(".preset-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
+      e.target.classList.add("active");
+      
+      const p = presets[e.target.dataset.preset];
+      inAwareness.value = p.awareness;
+      inConversion.value = p.conversion;
+      inB2b.value = p.b2b;
+      inPrice.value = p.price;
+      calculate();
+    });
+  });
+
+  // Initial calc
+  calculate();
+
+  // Nav logic
+  document.getElementById('nav-prev').addEventListener('click', () => {
+    document.body.style.transition = 'opacity 300ms ease';
+    document.body.style.opacity = '0';
+    setTimeout(() => window.location.href = 'eleventh.html', 300);
+  });
+  document.getElementById('nav-next').addEventListener('click', () => {
+    const flyHead = document.getElementById('fly-head');
+    const btn = document.getElementById('nav-next');
+    const btnRect = btn.getBoundingClientRect();
+
+    flyHead.style.display = 'block';
+    flyHead.style.top = btnRect.top + 'px';
+    flyHead.style.left = btnRect.left + 'px';
+    flyHead.style.width = btnRect.width + 'px';
+    flyHead.style.height = btnRect.height + 'px';
+    flyHead.style.transition = 'none';
+
+    sessionStorage.setItem('fromSimulation', '1');
+    sessionStorage.setItem('headRect', JSON.stringify({
+      top: btnRect.top, left: btnRect.left,
+      width: btnRect.width, height: btnRect.height
+    }));
+
+    const container = document.getElementById('page-container');
+    container.style.transition = 'opacity 300ms ease, transform 300ms ease';
+    container.style.opacity = '0';
+    container.style.transform = 'translateY(-20px)';
+
+    setTimeout(() => window.location.href = 'twelfth.html', 350);
+  });
+});
+</script>
+</body>
+</html>

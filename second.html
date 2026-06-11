@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lentot – Agenda</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    background: #07091A;
+    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  /* ── aurora background blobs ── */
+  .bg-blob {
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .bg-blob-1 {
+    width: 560px; height: 560px;
+    background: radial-gradient(circle, rgba(158,123,53,0.28) 0%, transparent 70%);
+    top: -180px; left: -120px;
+    filter: blur(80px);
+    animation: blob1 24s ease-in-out infinite;
+  }
+  .bg-blob-2 {
+    width: 480px; height: 480px;
+    background: radial-gradient(circle, rgba(30,60,140,0.32) 0%, transparent 70%);
+    bottom: -120px; right: -100px;
+    filter: blur(80px);
+    animation: blob2 30s ease-in-out infinite;
+  }
+  .bg-blob-3 {
+    width: 380px; height: 380px;
+    background: radial-gradient(circle, rgba(158,123,53,0.18) 0%, transparent 70%);
+    top: 45%; left: 58%;
+    filter: blur(70px);
+    animation: blob3 20s ease-in-out infinite;
+  }
+  .bg-blob-4 {
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(80,30,160,0.22) 0%, transparent 70%);
+    top: 18%; right: 8%;
+    filter: blur(60px);
+    animation: blob4 26s ease-in-out infinite;
+  }
+
+  @keyframes blob1 {
+    0%,100% { transform: translate(0,0); }
+    33%     { transform: translate(90px,70px); }
+    66%     { transform: translate(-50px,130px); }
+  }
+  @keyframes blob2 {
+    0%,100% { transform: translate(0,0); }
+    40%     { transform: translate(-110px,-90px); }
+    70%     { transform: translate(70px,-130px); }
+  }
+  @keyframes blob3 {
+    0%,100% { transform: translate(0,0); }
+    50%     { transform: translate(-120px,-70px); }
+  }
+  @keyframes blob4 {
+    0%,100% { transform: translate(0,0); }
+    35%     { transform: translate(-80px,100px); }
+    70%     { transform: translate(60px,50px); }
+  }
+
+  /* ── flying circle for page transition ── */
+  #fly-head {
+    position: fixed;
+    border-radius: 50%;
+    background: #D7AF5B;
+    z-index: 9999;
+    pointer-events: none;
+    top: -200px; left: -200px;
+    width: 55px; height: 55px;
+    will-change: top, left, width, height, background-color;
+  }
+
+  /* ── foreground layers above bg ── */
+  .page-header, .agenda { position: relative; z-index: 1; }
+
+  /* ── header ── */
+  .page-header {
+    height: 116px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 22px 52px 16px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 350ms ease;
+  }
+  .page-header.visible { opacity: 1; }
+
+  .header-dot {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #D7AF5B;
+    flex-shrink: 0;
+    box-shadow: 0 0 26px rgba(215,175,91,0.24);
+  }
+
+  .page-title {
+    font-size: 58px;
+    font-weight: 850;
+    color: #ffffff;
+    letter-spacing: -0.035em;
+    line-height: 1.02;
+  }
+
+  /* ── agenda grid ── */
+  .agenda {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(4, 1fr);
+    gap: 14px;
+    padding: 0 52px 34px;
+    opacity: 0;
+    transition: opacity 600ms ease;
+  }
+  .agenda.visible { opacity: 1; }
+
+  /* ── frosted glass card ── */
+  .agenda-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 0 30px;
+    background: rgba(255,255,255,0.07);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 18px 52px rgba(0,0,0,0.28);
+    overflow: hidden;
+  }
+
+  /* last card spans full width when odd number of cards */
+  .agenda-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  /* left-column gold accent bar */
+  .agenda-card:nth-child(odd)::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 18%; height: 64%; width: 3px;
+    background: #D7AF5B;
+    border-radius: 0 2px 2px 0;
+    opacity: 0.9;
+  }
+
+  /* number badge */
+  .agenda-num-badge {
+    width: 50px; height: 50px;
+    border-radius: 12px;
+    background: rgba(215,175,91,0.16);
+    border: 1px solid rgba(215,175,91,0.36);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    color: #D7AF5B;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .agenda-text { flex: 1; position: relative; z-index: 1; }
+
+  .agenda-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.018em;
+    line-height: 1.18;
+  }
+
+  .agenda-sub {
+    margin-top: 7px;
+    font-size: 14px;
+    color: rgba(215,225,244,0.52);
+    line-height: 1.45;
+    letter-spacing: 0.01em;
+  }
+
+  @media (max-width: 1100px) {
+    .page-header, .agenda { padding-left: 34px; padding-right: 34px; }
+    .page-title { font-size: 48px; }
+    .agenda-title { font-size: 21px; }
+    .agenda-sub { font-size: 13px; }
+  }
+
+  .nav-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1000;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: rgba(255,255,255,0.5);
+    font-size: 26px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    outline: none;
+    transition: background 200ms ease, color 200ms ease, border-color 200ms ease, transform 200ms ease;
+  }
+  .nav-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    border-color: rgba(215,175,91,0.5);
+    transform: translateY(-50%) scale(1.1);
+  }
+  .nav-btn--prev { left: 20px; }
+  .nav-btn--next { right: 20px; }
+</style>
+</head>
+<body>
+
+<div class="bg-blob bg-blob-1"></div>
+<div class="bg-blob bg-blob-2"></div>
+<div class="bg-blob bg-blob-3"></div>
+<div class="bg-blob bg-blob-4"></div>
+
+<div id="fly-head"></div>
+
+<header class="page-header" id="page-header">
+  <div class="header-dot"></div>
+  <h1 class="page-title">AGENDA</h1>
+</header>
+
+<main class="agenda" id="agenda">
+  <div class="agenda-card">
+    <div class="agenda-num-badge">01</div>
+    <div class="agenda-text">
+      <div class="agenda-title">문제 정의</div>
+      <div class="agenda-sub">현재 여행 시장의 페인 포인트</div>
+    </div>
+  </div>
+  <div class="agenda-card">
+    <div class="agenda-num-badge">05</div>
+    <div class="agenda-text">
+      <div class="agenda-title">경쟁 분석</div>
+      <div class="agenda-sub">포지셔닝 맵 &amp; 차별화 전략</div>
+    </div>
+  </div>
+
+  <div class="agenda-card">
+    <div class="agenda-num-badge">02</div>
+    <div class="agenda-text">
+      <div class="agenda-title">고객 탐색</div>
+      <div class="agenda-sub">타겟 세그먼트 &amp; 사용자 여정</div>
+    </div>
+  </div>
+  <div class="agenda-card">
+    <div class="agenda-num-badge">06</div>
+    <div class="agenda-text">
+      <div class="agenda-title">수익 구조</div>
+      <div class="agenda-sub">수익화 모델 &amp; 단가 설계</div>
+    </div>
+  </div>
+
+  <div class="agenda-card">
+    <div class="agenda-num-badge">03</div>
+    <div class="agenda-text">
+      <div class="agenda-title">인터뷰 검증</div>
+      <div class="agenda-sub">정성·정량 리서치 결과</div>
+    </div>
+  </div>
+  <div class="agenda-card">
+    <div class="agenda-num-badge">04</div>
+    <div class="agenda-text">
+      <div class="agenda-title">솔루션 &amp; 가치</div>
+      <div class="agenda-sub">핵심 기능 &amp; 가치 제안서</div>
+    </div>
+  </div>
+  <div class="agenda-card">
+    <div class="agenda-num-badge">07</div>
+    <div class="agenda-text">
+      <div class="agenda-title">향후 계획</div>
+      <div class="agenda-sub">로드맵 &amp; 마일스톤</div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  var flyHead = document.getElementById('fly-head');
+  var header  = document.getElementById('page-header');
+  var agenda  = document.getElementById('agenda');
+
+  var fromFirst   = sessionStorage.getItem('fromFirst') === '1';
+  var headRectStr = sessionStorage.getItem('headRect');
+  sessionStorage.removeItem('fromFirst');
+  sessionStorage.removeItem('headRect');
+
+  var TARGET_TOP  = 51;
+  var TARGET_LEFT = 52;
+  var TARGET_SIZE = 20;
+
+  if (fromFirst && headRectStr) {
+    var r = JSON.parse(headRectStr);
+
+    document.body.style.backgroundColor = '#ffffff';
+
+    flyHead.style.transition      = 'none';
+    flyHead.style.backgroundColor = '#D7AF5B';
+    flyHead.style.top    = r.top    + 'px';
+    flyHead.style.left   = r.left   + 'px';
+    flyHead.style.width  = r.width  + 'px';
+    flyHead.style.height = r.height + 'px';
+
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        document.body.style.transition      = 'background-color 900ms ease';
+        document.body.style.backgroundColor = '#07091A';
+
+        flyHead.style.transition =
+          'top 1000ms cubic-bezier(0.65,0,0.35,1), ' +
+          'left 1000ms cubic-bezier(0.65,0,0.35,1), ' +
+          'width 1000ms cubic-bezier(0.65,0,0.35,1), ' +
+          'height 1000ms cubic-bezier(0.65,0,0.35,1), ' +
+          'background-color 700ms ease 180ms';
+        flyHead.style.top             = TARGET_TOP  + 'px';
+        flyHead.style.left            = TARGET_LEFT + 'px';
+        flyHead.style.width           = TARGET_SIZE + 'px';
+        flyHead.style.height          = TARGET_SIZE + 'px';
+        flyHead.style.backgroundColor = '#D7AF5B';
+
+        setTimeout(function () {
+          flyHead.style.display = 'none';
+          header.classList.add('visible');
+          setTimeout(function () {
+            agenda.classList.add('visible');
+          }, 150);
+        }, 1050);
+      });
+    });
+
+  } else {
+    flyHead.style.display = 'none';
+    header.classList.add('visible');
+    agenda.classList.add('visible');
+  }
+})();
+
+  // ── cards fly to top strip → third.html ──
+  (function () {
+    var going    = false;
+    var agendaEl = document.getElementById('agenda');
+    var headerEl = document.getElementById('page-header');
+
+    // DOM order: 01,05,02,06,03,07,04,08
+    // Strip order: 01,02,03,04,05,06,07,08
+    var domToStrip = [0, 4, 1, 5, 2, 6, 3, 7];
+
+    function goNext() {
+      if (going) return;
+      if (!agendaEl.classList.contains('visible')) return;
+      going = true;
+
+      var cards  = Array.from(document.querySelectorAll('.agenda-card'));
+      var vw     = window.innerWidth;
+      var STRIP_H = 44;
+      var STRIP_W = Math.floor(vw / 8);
+
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:9990;pointer-events:none;';
+      document.body.appendChild(overlay);
+
+      cards.forEach(function (card, i) {
+        var rect     = card.getBoundingClientRect();
+        var stripPos = domToStrip[i];
+
+        var ph = document.createElement('div');
+        ph.style.cssText =
+          'position:fixed;' +
+          'left:'   + rect.left   + 'px;' +
+          'top:'    + rect.top    + 'px;' +
+          'width:'  + rect.width  + 'px;' +
+          'height:' + rect.height + 'px;' +
+          'background:rgba(255,255,255,0.09);' +
+          'border-radius:14px;' +
+          'border:1px solid rgba(255,255,255,0.13);' +
+          'pointer-events:none;overflow:hidden;';
+        overlay.appendChild(ph);
+
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            ph.style.transition =
+              'left 600ms cubic-bezier(0.76,0,0.24,1),' +
+              'top 600ms cubic-bezier(0.76,0,0.24,1),' +
+              'width 600ms cubic-bezier(0.76,0,0.24,1),' +
+              'height 600ms cubic-bezier(0.76,0,0.24,1),' +
+              'border-radius 400ms ease';
+            ph.style.left         = (stripPos * STRIP_W) + 'px';
+            ph.style.top          = '0px';
+            ph.style.width        = STRIP_W + 'px';
+            ph.style.height       = STRIP_H + 'px';
+            ph.style.borderRadius = '0';
+          });
+        });
+      });
+
+      headerEl.style.transition = 'opacity 300ms ease';
+      headerEl.style.opacity    = '0';
+      agendaEl.style.transition = 'opacity 200ms ease';
+      agendaEl.style.opacity    = '0';
+
+      sessionStorage.setItem('fromSecond', '1');
+      setTimeout(function () { window.location.href = 'third.html'; }, 660);
+    }
+
+    function goPrev() {
+      if (going) return;
+      going = true;
+      document.body.style.transition = 'opacity 300ms ease';
+      document.body.style.opacity = '0';
+      setTimeout(function () { window.location.href = 'slide_2.html'; }, 320);
+    }
+
+    document.addEventListener('click', function (e) {
+      var navBtn = e.target.closest && e.target.closest('.nav-btn');
+      if (navBtn) {
+        if (navBtn.id === 'nav-prev') goPrev();
+        else if (navBtn.id === 'nav-next') goNext();
+        return;
+      }
+      goNext();
+    });
+  })();
+</script>
+
+<button class="nav-btn nav-btn--prev" id="nav-prev" aria-label="이전 슬라이드">‹</button>
+<button class="nav-btn nav-btn--next" id="nav-next" aria-label="다음 슬라이드">›</button>
+</body>
+</html>

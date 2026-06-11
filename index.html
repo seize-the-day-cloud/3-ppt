@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lentot</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    min-height: 100vh;
+    background: #07091A;
+    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  /* ── aurora background blobs ── */
+  .bg-blob {
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .bg-blob-1 {
+    width: 560px; height: 560px;
+    background: radial-gradient(circle, rgba(158,123,53,0.28) 0%, transparent 70%);
+    top: -180px; left: -120px;
+    filter: blur(80px);
+    animation: blob1 24s ease-in-out infinite;
+  }
+  .bg-blob-2 {
+    width: 480px; height: 480px;
+    background: radial-gradient(circle, rgba(30,60,140,0.32) 0%, transparent 70%);
+    bottom: -120px; right: -100px;
+    filter: blur(80px);
+    animation: blob2 30s ease-in-out infinite;
+  }
+  .bg-blob-3 {
+    width: 380px; height: 380px;
+    background: radial-gradient(circle, rgba(158,123,53,0.18) 0%, transparent 70%);
+    top: 45%; left: 58%;
+    filter: blur(70px);
+    animation: blob3 20s ease-in-out infinite;
+  }
+  .bg-blob-4 {
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(80,30,160,0.22) 0%, transparent 70%);
+    top: 18%; right: 8%;
+    filter: blur(60px);
+    animation: blob4 26s ease-in-out infinite;
+  }
+  @keyframes blob1 { 0%,100%{transform:translate(0,0)} 33%{transform:translate(90px,70px)} 66%{transform:translate(-50px,130px)} }
+  @keyframes blob2 { 0%,100%{transform:translate(0,0)} 40%{transform:translate(-110px,-90px)} 70%{transform:translate(70px,-130px)} }
+  @keyframes blob3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-120px,-70px)} }
+  @keyframes blob4 { 0%,100%{transform:translate(0,0)} 35%{transform:translate(-80px,100px)} 70%{transform:translate(60px,50px)} }
+
+  .page {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .figure {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 360px;
+  }
+
+  .ground {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 36px;
+    height: 1px;
+    background: #ffffff;
+    opacity: 0.12;
+  }
+
+  .shadow {
+    position: absolute;
+    left: 50%;
+    bottom: 28px;
+    width: 84px;
+    height: 16px;
+    margin-left: -42px;
+    border-radius: 50%;
+    background: #ffffff;
+    filter: blur(4px);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+
+  .shadow.is-visible {
+    opacity: 0.18;
+  }
+
+  .head {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 55px;
+    height: 55px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: #D7AF5B;
+    box-shadow: 0 0 20px rgba(215, 175, 91, 0.4);
+    z-index: 2;
+  }
+
+  .logo-pre,
+  .logo-post {
+    position: absolute;
+    top: 0;
+    height: 55px;
+    display: flex;
+    align-items: center;
+    font-size: 100px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    z-index: 2;
+  }
+
+  .logo-pre {
+    right: calc(50% + 33.5px);
+  }
+
+  .logo-post {
+    left: calc(50% + 33.5px);
+  }
+
+  .set {
+    position: absolute;
+    top: 56px;
+    left: 50%;
+    width: 130px;
+    margin-left: -65px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: translate(calc(-50vw - 140px), 0) scale(1);
+    filter: blur(16px);
+    opacity: 0;
+    will-change: transform, filter, opacity;
+  }
+
+  .set img {
+    display: block;
+    width: 100%;
+    object-fit: contain;
+    filter: invert(1);
+  }
+
+  .set .top {
+    height: 160px;
+  }
+
+  .set .bottom {
+    height: 66px;
+    margin-top: -8px;
+  }
+
+  .day-list {
+    position: absolute;
+    top: 50%;
+    right: clamp(16px, 6vw, 64px);
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .day-box {
+    width: 96px;
+    padding: 14px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .day-box__label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .day-box__slot {
+    display: block;
+    width: 62px;
+    height: 104px;
+  }
+
+  .tagline {
+    margin-bottom: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #D7AF5B;
+    opacity: 0.8;
+  }
+
+  .signup-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 64px;
+  }
+
+  .signup-title {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-align: center;
+    border: 1px solid rgba(215, 175, 91, 0.38);
+    background: rgba(215, 175, 91, 0.16);
+    color: #D7AF5B;
+    padding: 14px 32px;
+    border-radius: 999px;
+  }
+
+  .signup-members {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .nav-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1000;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: rgba(255,255,255,0.5);
+    font-size: 26px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    outline: none;
+    transition: background 200ms ease, color 200ms ease, border-color 200ms ease, transform 200ms ease;
+  }
+  .nav-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    border-color: rgba(215,175,91,0.5);
+    transform: translateY(-50%) scale(1.1);
+  }
+  .nav-btn--next { right: 20px; }
+</style>
+</head>
+<body>
+  <div class="bg-blob bg-blob-1"></div>
+  <div class="bg-blob bg-blob-2"></div>
+  <div class="bg-blob bg-blob-3"></div>
+  <div class="bg-blob bg-blob-4"></div>
+
+  <div class="page">
+    <h1 class="visually-hidden">lentot</h1>
+
+    <div class="stage" aria-hidden="true">
+      <div class="day-list">
+        <div class="day-box">
+          <span class="day-box__label">DAY1</span>
+          <span class="day-box__slot"></span>
+        </div>
+        <div class="day-box">
+          <span class="day-box__label">DAY2</span>
+          <span class="day-box__slot"></span>
+        </div>
+        <div class="day-box">
+          <span class="day-box__label">DAY3</span>
+          <span class="day-box__slot"></span>
+        </div>
+      </div>
+
+      <div class="figure">
+        <span class="logo-pre" aria-hidden="true">lent</span>
+        <span class="head" aria-hidden="true"></span>
+        <span class="logo-post" aria-hidden="true">t</span>
+        <span class="ground" aria-hidden="true"></span>
+        <span class="shadow" aria-hidden="true"></span>
+
+        <div class="set set--1">
+          <img class="top" src="lentot_last_style_girl_top_png/girl.1.png" alt="">
+          <img class="bottom" src="lentot_last_style_girl_shoes_png/girl.1.png" alt="">
+        </div>
+        <div class="set set--2">
+          <img class="top" src="lentot_last_style_girl_top_png/girl.2.png" alt="">
+          <img class="bottom" src="lentot_last_style_girl_shoes_png/girl.2.png" alt="">
+        </div>
+        <div class="set set--3">
+          <img class="top" src="lentot_last_style_girl_top_png/girl.3.png" alt="">
+          <img class="bottom" src="lentot_last_style_girl_shoes_png/girl.3.png" alt="">
+        </div>
+      </div>
+    </div>
+
+    <p class="tagline">make your trip extraordinary</p>
+
+    <div class="signup-info">
+      <span class="signup-title">스타트업 유니콘 비즈니스 모델 사례와 연구 3조</span>
+      <span class="signup-members">조원혁 &nbsp;·&nbsp; 한윤민 &nbsp;·&nbsp; 황성준</span>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var sets = Array.prototype.slice.call(document.querySelectorAll('.set'));
+      var slots = Array.prototype.slice.call(document.querySelectorAll('.day-box__slot'));
+      var shadow = document.querySelector('.shadow');
+
+      var OFFSCREEN = 'translate(calc(-50vw - 140px), 0) scale(1)';
+      var AT_HEAD = 'translate(0, 0) scale(1)';
+
+      function wait(ms) {
+        return new Promise(function (resolve) { setTimeout(resolve, ms); });
+      }
+
+      function nextFrame() {
+        return new Promise(function (resolve) {
+          requestAnimationFrame(function () { requestAnimationFrame(resolve); });
+        });
+      }
+
+      function placeNow(el, transform, filter, opacity) {
+        el.style.transition = 'none';
+        el.style.transform = transform;
+        el.style.filter = filter;
+        el.style.opacity = opacity;
+        el.getBoundingClientRect();
+        el.style.transition = '';
+      }
+
+      function moveTo(el, transform, filter, opacity, duration, easing) {
+        return new Promise(function (resolve) {
+          el.style.transition =
+            'transform ' + duration + 'ms ' + easing + ', ' +
+            'filter ' + duration + 'ms ' + easing + ', ' +
+            'opacity ' + duration + 'ms ' + easing;
+          el.getBoundingClientRect();
+          el.style.transform = transform;
+          el.style.filter = filter;
+          el.style.opacity = opacity;
+          setTimeout(resolve, duration);
+        });
+      }
+
+      function fadeOut(el, duration) {
+        return new Promise(function (resolve) {
+          el.style.transition = 'filter ' + duration + 'ms ease, opacity ' + duration + 'ms ease';
+          el.getBoundingClientRect();
+          el.style.filter = 'blur(16px)';
+          el.style.opacity = '0';
+          setTimeout(resolve, duration);
+        });
+      }
+
+      function travelToSlot(el, slot) {
+        var setRect = el.getBoundingClientRect();
+        var slotRect = slot.getBoundingClientRect();
+        var dx = (slotRect.left + slotRect.width / 2) - (setRect.left + setRect.width / 2);
+        var dy = (slotRect.top + slotRect.height / 2) - (setRect.top + setRect.height / 2);
+        var scale = Math.min(slotRect.width / setRect.width, slotRect.height / setRect.height);
+        return moveTo(
+          el,
+          'translate(' + dx + 'px, ' + dy + 'px) scale(' + scale + ')',
+          'blur(0)',
+          '1',
+          1100,
+          'cubic-bezier(0.65, 0, 0.35, 1)'
+        );
+      }
+
+      async function runCycle() {
+        for (var i = 0; i < sets.length; i++) {
+          var el = sets[i];
+          placeNow(el, OFFSCREEN, 'blur(16px)', '0');
+          await nextFrame();
+          await moveTo(el, AT_HEAD, 'blur(0)', '1', 1500, 'linear');
+          shadow.classList.add('is-visible');
+          await wait(900);
+          shadow.classList.remove('is-visible');
+          await travelToSlot(el, slots[i]);
+        }
+
+        await wait(900);
+        await Promise.all(sets.map(function (el) { return fadeOut(el, 900); }));
+        sets.forEach(function (el) { placeNow(el, OFFSCREEN, 'blur(16px)', '0'); });
+
+        await wait(400);
+        runCycle();
+      }
+
+      runCycle();
+    })();
+
+    // ── page transition on click ──
+    (function () {
+      var transitioning = false;
+      document.querySelector('.page').style.cursor = 'pointer';
+
+      function goNext() {
+        if (transitioning) return;
+        transitioning = true;
+
+        var headEl = document.querySelector('.head');
+        var rect = headEl.getBoundingClientRect();
+        sessionStorage.setItem('fromFirst', '1');
+        sessionStorage.setItem('headRect', JSON.stringify({
+          top: rect.top, left: rect.left,
+          width: rect.width, height: rect.height
+        }));
+
+        var selectors = ['.logo-pre', '.logo-post', '.day-list', '.ground', '.shadow', '.tagline', '.signup-info'];
+        var targets = selectors.map(function (s) { return document.querySelector(s); });
+        [].push.apply(targets, document.querySelectorAll('.set'));
+
+        targets.forEach(function (el) {
+          if (!el) return;
+          el.style.transition = 'opacity 700ms ease, filter 700ms ease';
+        });
+
+        requestAnimationFrame(function () {
+          targets.forEach(function (el) {
+            if (!el) return;
+            el.style.opacity = '0';
+            el.style.filter  = 'blur(14px)';
+          });
+          setTimeout(function () {
+            window.location.href = 'slide_2.html';
+          }, 740);
+        });
+      }
+
+      document.addEventListener('click', function (e) {
+        var navBtn = e.target.closest && e.target.closest('.nav-btn');
+        if (navBtn) {
+          if (navBtn.id === 'nav-next') goNext();
+          return;
+        }
+        goNext();
+      });
+    })();
+  </script>
+
+  <button class="nav-btn nav-btn--next" id="nav-next" aria-label="다음 슬라이드">›</button>
+</body>
+</html>

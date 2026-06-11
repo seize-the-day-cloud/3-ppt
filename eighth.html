@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lentot - 서비스 플로우와 핵심 기능</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    display: flex;
+    flex-direction: column;
+    background: #07091A;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .bg-blob { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; }
+  .bg-blob-1 {
+    width: 560px; height: 560px;
+    background: radial-gradient(circle, rgba(158,123,53,0.25) 0%, transparent 70%);
+    top: -185px; left: -130px; filter: blur(82px);
+    animation: blob1 24s ease-in-out infinite;
+  }
+  .bg-blob-2 {
+    width: 520px; height: 520px;
+    background: radial-gradient(circle, rgba(36,104,150,0.28) 0%, transparent 70%);
+    bottom: -150px; right: -120px; filter: blur(86px);
+    animation: blob2 30s ease-in-out infinite;
+  }
+  .bg-blob-3 {
+    width: 360px; height: 360px;
+    background: radial-gradient(circle, rgba(72,213,151,0.16) 0%, transparent 70%);
+    top: 44%; left: 56%; filter: blur(76px);
+    animation: blob3 22s ease-in-out infinite;
+  }
+  @keyframes blob1 { 0%,100%{transform:translate(0,0)} 33%{transform:translate(90px,70px)} 66%{transform:translate(-50px,130px)} }
+  @keyframes blob2 { 0%,100%{transform:translate(0,0)} 40%{transform:translate(-110px,-90px)} 70%{transform:translate(70px,-130px)} }
+  @keyframes blob3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-120px,-70px)} }
+
+  .agenda-strip, .title-section, .product-board { position: relative; z-index: 1; }
+  .agenda-strip {
+    height: 44px;
+    flex-shrink: 0;
+    display: flex;
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+  .agenda-strip.visible { opacity: 1; }
+  .strip-item {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 0 4px;
+    border-right: 1px solid rgba(255,255,255,0.05);
+    overflow: hidden;
+  }
+  .strip-item:last-child { border-right: 0; }
+  .strip-item.active {
+    background: rgba(158,123,53,0.13);
+    border-bottom: 2px solid #C4973F;
+    animation: activePulse 1800ms ease-in-out infinite;
+  }
+  @keyframes activePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.035)} }
+  .strip-num {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: rgba(255,255,255,0.28);
+  }
+  .strip-label {
+    max-width: 100%;
+    color: rgba(255,255,255,0.2);
+    font-size: 9px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .strip-item.active .strip-num { color: #C4973F; }
+  .strip-item.active .strip-label { color: rgba(196,151,63,0.78); }
+
+  .title-section {
+    padding: 24px 52px 16px;
+    flex-shrink: 0;
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 450ms ease, transform 450ms ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .title-section.visible { opacity: 1; transform: translateY(0); }
+  .title-tag {
+    color: #D7AF5B;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.24em;
+    margin-bottom: 10px;
+  }
+  .title-group { display: flex; flex-direction: column; }
+  .main-title {
+    font-size: 58px;
+    font-weight: 850;
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+  }
+
+  .demo-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    border-radius: 999px;
+    background: rgba(215, 175, 91, 0.15);
+    border: 1px solid rgba(215, 175, 91, 0.4);
+    color: #D7AF5B;
+    font-size: 16px;
+    font-weight: 800;
+    text-decoration: none;
+    letter-spacing: -0.01em;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: all 250ms ease;
+    margin-bottom: 6px;
+  }
+  .demo-link-btn:hover {
+    background: rgba(215, 175, 91, 0.3);
+    border-color: rgba(215, 175, 91, 0.7);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(215, 175, 91, 0.25);
+  }
+
+  .live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(255, 65, 85, 0.15);
+    border: 1px solid rgba(255, 65, 85, 0.3);
+    color: #FF4155;
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+  .live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #FF4155;
+    animation: livePulse 1.5s infinite;
+  }
+  @keyframes livePulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 65, 85, 0.6); }
+    70% { box-shadow: 0 0 0 5px rgba(255, 65, 85, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 65, 85, 0); }
+  }
+
+  .product-board {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: 0.82fr 1.28fr;
+    gap: 26px;
+    padding: 0 52px 34px;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 540ms ease, transform 540ms ease;
+  }
+  .product-board.visible { opacity: 1; transform: translateY(0); }
+  .flow-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 60px 1fr 60px 1fr 60px 1fr;
+    gap: 10px;
+    min-height: 0;
+  }
+
+  /* ── EKG step connectors ── */
+  .step-connector {
+    position: relative;
+    z-index: 2;
+    overflow: visible;
+  }
+
+  .conn-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    opacity: 0;
+    transition: opacity 80ms ease;
+  }
+  .step-connector.visible .conn-svg { opacity: 1; }
+
+  /* dim ghost — full EKG shape always visible as reference */
+  .conn-track {
+    fill: none;
+    stroke: rgba(215, 175, 91, 0.28);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    transition: opacity 400ms ease;
+  }
+  .step-connector.visible .conn-track { opacity: 1; }
+
+  /* bright scanning pulse — sweeps left→right like a vital-sign monitor */
+  .conn-sweep {
+    fill: none;
+    stroke: rgba(215, 175, 91, 0.88);
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 50 165;  /* 50-unit lit segment, 165-unit dark gap  */
+    stroke-dashoffset: 215;
+    opacity: 0;
+  }
+  .step-connector.visible .conn-sweep {
+    animation: vitalScan 2.2s linear infinite;
+    animation-delay: 350ms;
+    animation-fill-mode: backwards;
+  }
+  .step-connector.visible .conn-svg {
+    filter: drop-shadow(0 0 5px rgba(215, 175, 91, 0.5));
+  }
+
+  /* dashoffset 215→50 sweeps the 50-unit worm from path-start to path-end */
+  @keyframes vitalScan {
+    0%   { stroke-dashoffset: 215; opacity: 0; }
+    8%   { opacity: 0.88; }
+    82%  { opacity: 0.88; }
+    94%  { stroke-dashoffset: 50;  opacity: 0; }
+    100% { stroke-dashoffset: 215; opacity: 0; }
+  }
+  .step-card, .feature-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.07);
+    box-shadow: 0 18px 52px rgba(0,0,0,0.28);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 460ms ease, transform 460ms ease;
+  }
+  .step-card.visible, .feature-card.visible { opacity: 1; transform: translateY(0); }
+  .step-card {
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 84px 1fr;
+    align-items: center;
+    gap: 18px;
+    padding: 24px 26px;
+  }
+  .step-badge {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #07111D;
+    background: linear-gradient(135deg, #D7AF5B, #E5C676);
+    font-size: 22px;
+    font-weight: 850;
+    letter-spacing: -0.02em;
+  }
+  .step-title {
+    font-size: 25px;
+    font-weight: 850;
+    line-height: 1.18;
+    letter-spacing: -0.02em;
+  }
+  .step-sub {
+    margin-top: 10px;
+    color: rgba(215,225,244,0.55);
+    font-size: 16px;
+    font-weight: 650;
+    line-height: 1.35;
+    word-break: keep-all;
+  }
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) 210px;
+    gap: 20px;
+    min-height: 0;
+  }
+
+  /* ── QR code card ── */
+  .qr-card {
+    align-items: center;
+    padding: 22px 18px 20px;
+    border-color: rgba(215,175,91,0.38);
+    box-shadow: 0 0 0 1px rgba(215,175,91,0.16), 0 18px 52px rgba(0,0,0,0.28), 0 0 40px rgba(215,175,91,0.07);
+  }
+  .qr-frame {
+    position: relative;
+    padding: 8px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.96);
+    box-shadow:
+      0 0 0 2px rgba(215,175,91,0.72),
+      0 0 0 4px rgba(215,175,91,0.16),
+      0 0 24px rgba(215,175,91,0.28);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .qr-img {
+    display: block;
+    width: 134px;
+    height: 134px;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+  .qr-scan-line {
+    position: absolute;
+    left: 8px; right: 8px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(215,175,91,0.95), transparent);
+    box-shadow: 0 0 10px rgba(215,175,91,0.7);
+    pointer-events: none;
+    animation: scanLine 2.4s ease-in-out infinite;
+  }
+  @keyframes scanLine {
+    0%   { top:  8px; opacity: 0; }
+    6%   { top:  8px; opacity: 1; }
+    88%  { top: calc(100% - 10px); opacity: 1; }
+    100% { top: calc(100% - 10px); opacity: 0; }
+  }
+  .qr-label {
+    margin-top: 14px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    color: rgba(215,175,91,0.72);
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .feature-card {
+    padding: 30px 30px 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  .qr-card { justify-content: center; }
+  .feature-img-wrap {
+    flex: 1;
+    min-height: 70px;
+    max-height: 165px;
+    margin-top: 20px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .feature-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.82;
+  }
+  .feature-img-wrap::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(7,9,26,0.55) 0%, transparent 55%);
+    pointer-events: none;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 24px; right: 24px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(215,175,91,0.82), transparent);
+  }
+  .feature-num {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 34px;
+    color: #D7AF5B;
+    border: 2px solid rgba(215,175,91,0.78);
+    font-size: 19px;
+    font-weight: 850;
+  }
+  .feature-title {
+    font-size: 28px;
+    font-weight: 850;
+    line-height: 1.18;
+    letter-spacing: -0.025em;
+  }
+  .feature-copy {
+    margin-top: 28px;
+    color: rgba(215,225,244,0.58);
+    font-size: 20px;
+    line-height: 1.5;
+    font-weight: 600;
+    word-break: keep-all;
+  }
+
+  @media (max-width: 1100px) {
+    .title-section, .product-board { padding-left: 34px; padding-right: 34px; }
+    .main-title { font-size: 48px; }
+    .step-card { grid-template-columns: 66px 1fr; padding: 20px; }
+    .step-badge { width: 58px; height: 58px; font-size: 19px; }
+    .step-title { font-size: 21px; }
+    .feature-title { font-size: 24px; }
+    .feature-copy { font-size: 17px; }
+    .demo-link-btn { font-size: 14px; padding: 12px 20px; }
+  }
+
+  .nav-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1000;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: rgba(255,255,255,0.5);
+    font-size: 26px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    outline: none;
+    transition: background 200ms ease, color 200ms ease, border-color 200ms ease, transform 200ms ease;
+  }
+  .nav-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    border-color: rgba(215,175,91,0.5);
+    transform: translateY(-50%) scale(1.1);
+  }
+  .nav-btn--prev { left: 20px; }
+  .nav-btn--next { right: 20px; }
+</style>
+</head>
+<body>
+<div class="bg-blob bg-blob-1"></div>
+<div class="bg-blob bg-blob-2"></div>
+<div class="bg-blob bg-blob-3"></div>
+
+<nav class="agenda-strip" id="agenda-strip">
+  <div class="strip-item"><span class="strip-num">01</span><span class="strip-label">문제 정의</span></div>
+  <div class="strip-item"><span class="strip-num">02</span><span class="strip-label">고객 탐색</span></div>
+  <div class="strip-item"><span class="strip-num">03</span><span class="strip-label">인터뷰 검증</span></div>
+  <div class="strip-item active"><span class="strip-num">04</span><span class="strip-label">솔루션 &amp; 가치</span></div>
+  <div class="strip-item"><span class="strip-num">05</span><span class="strip-label">경쟁 분석</span></div>
+  <div class="strip-item"><span class="strip-num">06</span><span class="strip-label">수익 구조</span></div>
+  <div class="strip-item"><span class="strip-num">07</span><span class="strip-label">향후 계획</span></div>
+</nav>
+
+<section class="title-section" id="title-section">
+  <div class="title-group">
+    <div class="title-tag">04 · MVP 핵심 기능</div>
+    <h1 class="main-title">서비스 플로우 &amp; 3대 기능</h1>
+  </div>
+  <a href="https://lentot.hwanggold6111.workers.dev/" target="_blank" rel="noopener noreferrer" class="demo-link-btn">
+    <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+    프로토타입 체험하기 ↗
+  </a>
+</section>
+
+<main class="product-board" id="product-board">
+  <section class="flow-row">
+    <article class="step-card">
+      <div class="step-badge">01</div>
+      <div>
+        <h2 class="step-title">코디 선택</h2>
+        <p class="step-sub">앱으로 미리</p>
+      </div>
+    </article>
+    <div class="step-connector" aria-hidden="true"><svg class="conn-svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="conn-track" d="M 0,50 L 10,50 L 16,42 L 22,50 L 28,50 L 34,20 L 38,70 L 44,50 L 52,50 L 58,38 L 64,50 L 100,50"/><path class="conn-sweep" d="M 0,50 L 10,50 L 16,42 L 22,50 L 28,50 L 34,20 L 38,70 L 44,50 L 52,50 L 58,38 L 64,50 L 100,50"/></svg></div>
+    <article class="step-card">
+      <div class="step-badge">02</div>
+      <div>
+        <h2 class="step-title">현지 수령</h2>
+        <p class="step-sub">현지 LENTOT 본점에서 수령</p>
+      </div>
+    </article>
+    <div class="step-connector" aria-hidden="true"><svg class="conn-svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="conn-track" d="M 0,50 L 10,50 L 16,42 L 22,50 L 28,50 L 34,20 L 38,70 L 44,50 L 52,50 L 58,38 L 64,50 L 100,50"/><path class="conn-sweep" d="M 0,50 L 10,50 L 16,42 L 22,50 L 28,50 L 34,20 L 38,70 L 44,50 L 52,50 L 58,38 L 64,50 L 100,50"/></svg></div>
+    <article class="step-card">
+      <div class="step-badge">03</div>
+      <div>
+        <h2 class="step-title">착용 &amp; 여행</h2>
+        <p class="step-sub">SNS 업로드</p>
+      </div>
+    </article>
+    <div class="step-connector" aria-hidden="true"><svg class="conn-svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="conn-track" d="M 0,50 L 10,50 L 16,42 L 22,50 L 28,50 L 34,20 L 38,70 L 44,50 L 52,50 L 58,38 L 64,50 L 100,50"/><path class="conn-sweep" d="M 0,50 L 10,50 L 16,42 L 22,50 L 28,50 L 34,20 L 38,70 L 44,50 L 52,50 L 58,38 L 64,50 L 100,50"/></svg></div>
+    <article class="step-card">
+      <div class="step-badge">04</div>
+      <div>
+        <h2 class="step-title">반납</h2>
+        <p class="step-sub">지정 장소</p>
+      </div>
+    </article>
+  </section>
+
+  <section class="features-grid">
+    <article class="feature-card">
+      <div class="feature-num">1</div>
+      <h2 class="feature-title">여행지별 코디 추천</h2>
+      <p class="feature-copy">나라 · 날씨 · 일정 기반 SNS 인기 코디 알고리즘</p>
+      <div class="feature-img-wrap">
+        <img class="feature-img" src="day.jpeg" alt="여행지별 코디 추천">
+      </div>
+    </article>
+    <article class="feature-card">
+      <div class="feature-num">2</div>
+      <h2 class="feature-title">캐리어 절감 예측</h2>
+      <p class="feature-copy">대여 시 짐 무게 감소량 &amp; 비용 절감액 수치 제공</p>
+      <div class="feature-img-wrap">
+        <img class="feature-img" src="wtf.jpeg" alt="캐리어 절감 예측">
+      </div>
+    </article>
+    <article class="feature-card">
+      <div class="feature-num">3</div>
+      <h2 class="feature-title">위생 · 세탁 신뢰 시스템</h2>
+      <p class="feature-copy">세탁 인증 배지 + 이력 공개로 우려 1위 해소</p>
+      <div class="feature-img-wrap">
+        <img class="feature-img" src="clean.png" alt="위생 세탁 신뢰 시스템">
+      </div>
+    </article>
+    <article class="feature-card qr-card">
+      <div class="qr-frame">
+        <img class="qr-img" src="QR.jpeg" alt="QR 코드">
+        <div class="qr-scan-line"></div>
+      </div>
+      <p class="qr-label">바로가기</p>
+    </article>
+  </section>
+</main>
+
+<script>
+(function () {
+  var strip = document.getElementById('agenda-strip');
+  var title = document.getElementById('title-section');
+  var board = document.getElementById('product-board');
+  var stepCards    = Array.from(document.querySelectorAll('.step-card'));
+  var connectors   = Array.from(document.querySelectorAll('.step-connector'));
+  var featureCards = Array.from(document.querySelectorAll('.feature-card'));
+  var fromSeventh  = sessionStorage.getItem('fromSeventh') === '1';
+  sessionStorage.removeItem('fromSeventh');
+
+  strip.classList.add('visible');
+  setTimeout(function () { title.classList.add('visible'); }, fromSeventh ? 120 : 0);
+  setTimeout(function () { board.classList.add('visible'); }, fromSeventh ? 260 : 0);
+
+  var base = fromSeventh ? 380 : 100;
+  stepCards.forEach(function (card, i) {
+    setTimeout(function () { card.classList.add('visible'); }, base + i * 280);
+    if (connectors[i]) {
+      setTimeout(function () { connectors[i].classList.add('visible'); }, base + i * 280 + 200);
+    }
+  });
+  featureCards.forEach(function (card, i) {
+    setTimeout(function () { card.classList.add('visible'); }, base + 4 * 280 + i * 100);
+  });
+
+  var going = false;
+
+  function goNext() {
+    if (going) return;
+    going = true;
+    title.style.opacity = '0';
+    title.style.transform = 'translateY(-12px)';
+    board.style.opacity = '0';
+    board.style.transform = 'translateY(18px)';
+    sessionStorage.setItem('fromEighth', '1');
+    setTimeout(function () { window.location.href = 'ninth.html'; }, 420);
+  }
+
+  function goPrev() {
+    if (going) return;
+    going = true;
+    document.body.style.transition = 'opacity 300ms ease';
+    document.body.style.opacity = '0';
+    setTimeout(function () { window.location.href = 'seventh.html'; }, 320);
+  }
+
+  document.addEventListener('click', function (e) {
+    var navBtn = e.target.closest && e.target.closest('.nav-btn');
+    if (navBtn) {
+      if (navBtn.id === 'nav-prev') goPrev();
+      else if (navBtn.id === 'nav-next') goNext();
+      return;
+    }
+    goNext();
+  });
+})();
+</script>
+
+<button class="nav-btn nav-btn--prev" id="nav-prev" aria-label="이전 슬라이드">‹</button>
+<button class="nav-btn nav-btn--next" id="nav-next" aria-label="다음 슬라이드">›</button>
+</body>
+</html>

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lentot - 가설 검증 결과</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    display: flex;
+    flex-direction: column;
+    background: #07091A;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .bg-blob { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; }
+  .bg-blob-1 {
+    width: 540px; height: 540px;
+    background: radial-gradient(circle, rgba(158,123,53,0.25) 0%, transparent 70%);
+    top: -170px; left: -120px; filter: blur(80px);
+    animation: blob1 24s ease-in-out infinite;
+  }
+  .bg-blob-2 {
+    width: 480px; height: 480px;
+    background: radial-gradient(circle, rgba(35,115,78,0.25) 0%, transparent 70%);
+    bottom: -130px; right: -90px; filter: blur(82px);
+    animation: blob2 30s ease-in-out infinite;
+  }
+  .bg-blob-3 {
+    width: 340px; height: 340px;
+    background: radial-gradient(circle, rgba(120,36,50,0.2) 0%, transparent 70%);
+    top: 42%; left: 18%; filter: blur(74px);
+    animation: blob3 22s ease-in-out infinite;
+  }
+  @keyframes blob1 { 0%,100%{transform:translate(0,0)} 33%{transform:translate(90px,70px)} 66%{transform:translate(-50px,130px)} }
+  @keyframes blob2 { 0%,100%{transform:translate(0,0)} 40%{transform:translate(-110px,-90px)} 70%{transform:translate(70px,-130px)} }
+  @keyframes blob3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-80px,-60px)} }
+
+  .agenda-strip, .title-section, .hypothesis-board { position: relative; z-index: 1; }
+  .agenda-strip {
+    height: 44px;
+    flex-shrink: 0;
+    display: flex;
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+  .agenda-strip.visible { opacity: 1; }
+  .strip-item {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 0 4px;
+    border-right: 1px solid rgba(255,255,255,0.05);
+    overflow: hidden;
+  }
+  .strip-item:last-child { border-right: 0; }
+  .strip-item.active {
+    background: rgba(158,123,53,0.13);
+    border-bottom: 2px solid #C4973F;
+    animation: activePulse 1800ms ease-in-out infinite;
+  }
+  @keyframes activePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.035)} }
+  .strip-num {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: rgba(255,255,255,0.28);
+  }
+  .strip-label {
+    max-width: 100%;
+    color: rgba(255,255,255,0.2);
+    font-size: 9px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .strip-item.active .strip-num { color: #C4973F; }
+  .strip-item.active .strip-label { color: rgba(196,151,63,0.78); }
+
+  .title-section {
+    padding: 24px 52px 14px;
+    flex-shrink: 0;
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 450ms ease, transform 450ms ease;
+  }
+  .title-section.visible { opacity: 1; transform: translateY(0); }
+  .title-tag {
+    color: #D7AF5B;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.24em;
+    margin-bottom: 10px;
+  }
+  .main-title {
+    font-size: 58px;
+    font-weight: 850;
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+  }
+
+  .hypothesis-board {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: 1fr 1fr 1fr 48px;
+    gap: 14px;
+    padding: 0 52px 30px;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 540ms ease, transform 540ms ease;
+    isolation: isolate;
+  }
+  .hypothesis-board.visible { opacity: 1; transform: translateY(0); }
+
+  .flow-field {
+    position: absolute;
+    inset: 0 52px 30px;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: 0.88;
+  }
+  .flow-field::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(72,213,151,0.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(72,213,151,0.055) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: radial-gradient(circle at 50% 48%, #000 0%, rgba(0,0,0,0.72) 46%, transparent 76%);
+    animation: digitalGrid 16s linear infinite;
+  }
+  .flow-field::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(72,213,151,0.07) 48%,
+      rgba(215,175,91,0.08) 50%,
+      rgba(72,213,151,0.07) 52%,
+      transparent 100%
+    );
+    transform: translateY(-120%);
+    animation: scanLine 6.5s ease-in-out infinite;
+  }
+  .flow-field svg {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .flow-base {
+    fill: none;
+    stroke: rgba(72,213,151,0.22);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    shape-rendering: geometricPrecision;
+  }
+  .flow-pulse {
+    fill: none;
+    stroke: url(#flowGradient);
+    stroke-width: 2.2;
+    stroke-linecap: square;
+    stroke-dasharray: 18 24 6 260;
+    animation: flowDash 4.8s linear infinite;
+    vector-effect: non-scaling-stroke;
+    shape-rendering: crispEdges;
+  }
+  .flow-pulse.pulse-2 { animation-delay: -1.8s; }
+  .flow-pulse.pulse-3 { animation-delay: -3.1s; }
+  .flow-dot {
+    fill: #D7AF5B;
+    opacity: 0.82;
+    filter: drop-shadow(0 0 8px rgba(215,175,91,0.48));
+  }
+  .flow-dot.dot-green {
+    fill: #48D597;
+    opacity: 0.72;
+    filter: drop-shadow(0 0 9px rgba(72,213,151,0.42));
+  }
+  .data-node {
+    fill: rgba(7,9,26,0.92);
+    stroke: #48D597;
+    stroke-width: 0.55;
+    vector-effect: non-scaling-stroke;
+    filter: drop-shadow(0 0 5px rgba(72,213,151,0.34));
+  }
+  .data-node.gold {
+    stroke: #D7AF5B;
+    filter: drop-shadow(0 0 5px rgba(215,175,91,0.34));
+  }
+  @keyframes flowDash {
+    from { stroke-dashoffset: 420; }
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes digitalGrid {
+    from { background-position: 0 0, 0 0; }
+    to { background-position: 42px 42px, 42px 42px; }
+  }
+  @keyframes scanLine {
+    0%, 18% { transform: translateY(-120%); opacity: 0; }
+    28% { opacity: 0.8; }
+    58% { opacity: 0.5; }
+    78%, 100% { transform: translateY(120%); opacity: 0; }
+  }
+
+  .change-row {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 64px 1.12fr;
+    align-items: stretch;
+    gap: 20px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 460ms ease, transform 460ms ease;
+  }
+  .change-row.visible { opacity: 1; transform: translateY(0); }
+  .before-card, .after-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 0;
+    padding: 22px 24px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 16px 46px rgba(0,0,0,0.26);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    overflow: hidden;
+  }
+  .before-card {
+    background: linear-gradient(135deg, rgba(78,18,22,0.48), rgba(62,20,22,0.34));
+  }
+  .after-card {
+    background: linear-gradient(135deg, rgba(18,72,45,0.56), rgba(13,58,38,0.38));
+  }
+  .before-card::before, .after-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 24px; right: 24px;
+    height: 2px;
+  }
+  .before-card::before { background: linear-gradient(90deg, transparent, #FF6B6B, transparent); }
+  .after-card::before { background: linear-gradient(90deg, transparent, #48D597, transparent); }
+  .card-label {
+    font-size: 13px;
+    font-weight: 850;
+    letter-spacing: 0.28em;
+    margin-bottom: 18px;
+  }
+  .before-card .card-label { color: #FF7777; }
+  .after-card .card-label { color: #48D597; }
+  .statement {
+    color: rgba(255,255,255,0.9);
+    font-size: 25px;
+    font-weight: 720;
+    line-height: 1.32;
+    letter-spacing: -0.018em;
+    word-break: keep-all;
+  }
+  .evidence {
+    margin-top: 12px;
+    color: rgba(215,225,244,0.58);
+    font-size: 15px;
+    line-height: 1.4;
+    word-break: keep-all;
+  }
+  .arrow-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #D7AF5B;
+    font-size: 34px;
+    font-weight: 700;
+  }
+
+  .insight-strip {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+    gap: 18px;
+    padding: 0 26px;
+    border-radius: 14px;
+    border: 1px solid rgba(72,213,151,0.18);
+    background: rgba(29,92,50,0.38);
+    color: rgba(255,255,255,0.88);
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 480ms ease, transform 480ms ease;
+  }
+  .insight-strip.visible { opacity: 1; transform: translateY(0); }
+  .insight-label {
+    color: #48D597;
+    font-size: 18px;
+    font-weight: 850;
+    letter-spacing: -0.01em;
+  }
+  .insight-text {
+    font-size: 22px;
+    font-weight: 780;
+    line-height: 1.22;
+    word-break: keep-all;
+  }
+  .accent { color: #D7AF5B; }
+
+  @media (max-width: 1100px) {
+    .title-section, .hypothesis-board { padding-left: 34px; padding-right: 34px; }
+    .flow-field { left: 34px; right: 34px; }
+    .main-title { font-size: 48px; }
+    .statement { font-size: 21px; }
+    .change-row { grid-template-columns: 1fr 46px 1.12fr; gap: 12px; }
+    .arrow-cell { font-size: 26px; }
+  }
+
+  .nav-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1000;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: rgba(255,255,255,0.5);
+    font-size: 26px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    outline: none;
+    transition: background 200ms ease, color 200ms ease, border-color 200ms ease, transform 200ms ease;
+  }
+  .nav-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    border-color: rgba(215,175,91,0.5);
+    transform: translateY(-50%) scale(1.1);
+  }
+  .nav-btn--prev { left: 20px; }
+  .nav-btn--next { right: 20px; }
+</style>
+</head>
+<body>
+<div class="bg-blob bg-blob-1"></div>
+<div class="bg-blob bg-blob-2"></div>
+<div class="bg-blob bg-blob-3"></div>
+
+<nav class="agenda-strip" id="agenda-strip">
+  <div class="strip-item"><span class="strip-num">01</span><span class="strip-label">문제 정의</span></div>
+  <div class="strip-item"><span class="strip-num">02</span><span class="strip-label">고객 탐색</span></div>
+  <div class="strip-item active"><span class="strip-num">03</span><span class="strip-label">인터뷰 검증</span></div>
+  <div class="strip-item"><span class="strip-num">04</span><span class="strip-label">솔루션 &amp; 가치</span></div>
+  <div class="strip-item"><span class="strip-num">05</span><span class="strip-label">경쟁 분석</span></div>
+  <div class="strip-item"><span class="strip-num">06</span><span class="strip-label">수익 구조</span></div>
+  <div class="strip-item"><span class="strip-num">07</span><span class="strip-label">향후 계획</span></div>
+</nav>
+
+<section class="title-section" id="title-section">
+  <div class="title-tag">03 · 가설 검증 결과</div>
+  <h1 class="main-title">가설이 이렇게 바뀌었다</h1>
+</section>
+
+<main class="hypothesis-board" id="hypothesis-board">
+  <div class="flow-field" aria-hidden="true">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#FF7777" stop-opacity="0"></stop>
+          <stop offset="35%" stop-color="#D7AF5B" stop-opacity="0.86"></stop>
+          <stop offset="62%" stop-color="#48D597" stop-opacity="0.72"></stop>
+          <stop offset="100%" stop-color="#48D597" stop-opacity="0"></stop>
+        </linearGradient>
+        <path id="flowPath1" d="M3 15 H29 V12 H46 V15 H97"></path>
+        <path id="flowPath2" d="M3 43 H24 V47 H42 V43 H61 V40 H97"></path>
+        <path id="flowPath3" d="M3 70 H31 V67 H49 V70 H70 V73 H97"></path>
+      </defs>
+      <use href="#flowPath1" class="flow-base"></use>
+      <use href="#flowPath2" class="flow-base"></use>
+      <use href="#flowPath3" class="flow-base"></use>
+      <use href="#flowPath1" class="flow-pulse pulse-1"></use>
+      <use href="#flowPath2" class="flow-pulse pulse-2"></use>
+      <use href="#flowPath3" class="flow-pulse pulse-3"></use>
+      <rect x="28.4" y="11.4" width="1.2" height="1.2" class="data-node gold"></rect>
+      <rect x="45.4" y="14.4" width="1.2" height="1.2" class="data-node"></rect>
+      <rect x="23.4" y="46.4" width="1.2" height="1.2" class="data-node gold"></rect>
+      <rect x="60.4" y="39.4" width="1.2" height="1.2" class="data-node"></rect>
+      <rect x="48.4" y="69.4" width="1.2" height="1.2" class="data-node gold"></rect>
+      <rect x="69.4" y="72.4" width="1.2" height="1.2" class="data-node"></rect>
+      <circle r="0.72" class="flow-dot">
+        <animateMotion dur="6.7s" repeatCount="indefinite" path="M3 15 H29 V12 H46 V15 H97"></animateMotion>
+      </circle>
+      <circle r="0.72" class="flow-dot dot-green">
+        <animateMotion dur="6.7s" begin="-3.1s" repeatCount="indefinite" path="M3 15 H29 V12 H46 V15 H97"></animateMotion>
+      </circle>
+      <circle r="0.72" class="flow-dot">
+        <animateMotion dur="7.2s" begin="-1.7s" repeatCount="indefinite" path="M3 43 H24 V47 H42 V43 H61 V40 H97"></animateMotion>
+      </circle>
+      <circle r="0.72" class="flow-dot dot-green">
+        <animateMotion dur="7.2s" begin="-4.9s" repeatCount="indefinite" path="M3 43 H24 V47 H42 V43 H61 V40 H97"></animateMotion>
+      </circle>
+      <circle r="0.72" class="flow-dot">
+        <animateMotion dur="7.7s" begin="-2.4s" repeatCount="indefinite" path="M3 70 H31 V67 H49 V70 H70 V73 H97"></animateMotion>
+      </circle>
+      <circle r="0.72" class="flow-dot dot-green">
+        <animateMotion dur="7.7s" begin="-5.6s" repeatCount="indefinite" path="M3 70 H31 V67 H49 V70 H70 V73 H97"></animateMotion>
+      </circle>
+    </svg>
+  </div>
+
+  <section class="change-row">
+    <article class="before-card">
+      <div class="card-label">BEFORE</div>
+      <div class="statement">의류 렌탈 거부감이 클 것</div>
+      <div class="evidence">초기 우려: 타인이 입은 옷에 대한 심리적 저항</div>
+    </article>
+    <div class="arrow-cell">→</div>
+    <article class="after-card">
+      <div class="card-label">AFTER ✓</div>
+      <div class="statement">경험자 <span class="accent">88.9%</span>, 진짜 허들은 위생 신뢰</div>
+      <div class="evidence">서비스 거부감보다 관리 기준과 세탁 신뢰가 핵심</div>
+    </article>
+  </section>
+
+  <section class="change-row">
+    <article class="before-card">
+      <div class="card-label">BEFORE</div>
+      <div class="statement">여성만 스타일 욕구가 강하다</div>
+      <div class="evidence">초기 타깃: 여성 여행자 중심의 스타일 니즈</div>
+    </article>
+    <div class="arrow-cell">→</div>
+    <article class="after-card">
+      <div class="card-label">AFTER ✓</div>
+      <div class="statement">남성 <span class="accent">71%</span>도 짐 감소·비용에 강한 관심</div>
+      <div class="evidence">성별보다 여행 빈도와 짐 부담이 수요를 설명</div>
+    </article>
+  </section>
+
+  <section class="change-row">
+    <article class="before-card">
+      <div class="card-label">BEFORE</div>
+      <div class="statement">스타일 욕구가 가장 큰 동기</div>
+      <div class="evidence">초기 메시지: 예쁜 여행 사진과 코디 완성도</div>
+    </article>
+    <div class="arrow-cell">→</div>
+    <article class="after-card">
+      <div class="card-label">AFTER ✓</div>
+      <div class="statement">짐 감소 수요가 스타일 욕구만큼 강력</div>
+      <div class="evidence">서비스 가치는 감성 편익과 실용 편익을 함께 제안해야 함</div>
+    </article>
+  </section>
+
+  <section class="insight-strip" id="insight-strip">
+    <div class="insight-label">핵심 인사이트</div>
+    <div class="insight-text">위생 신뢰장치 + 가격·사이즈 보장이 서비스 성패를 결정한다</div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var strip = document.getElementById('agenda-strip');
+  var title = document.getElementById('title-section');
+  var board = document.getElementById('hypothesis-board');
+  var rows = Array.from(document.querySelectorAll('.change-row'));
+  var insight = document.getElementById('insight-strip');
+  var fromFifth = sessionStorage.getItem('fromFifth') === '1';
+  sessionStorage.removeItem('fromFifth');
+
+  strip.classList.add('visible');
+  setTimeout(function () { title.classList.add('visible'); }, fromFifth ? 120 : 0);
+  setTimeout(function () { board.classList.add('visible'); }, fromFifth ? 260 : 0);
+  rows.forEach(function (row, i) {
+    setTimeout(function () { row.classList.add('visible'); }, (fromFifth ? 420 : 120) + i * 140);
+  });
+  setTimeout(function () { insight.classList.add('visible'); }, fromFifth ? 940 : 520);
+
+  var going = false;
+
+  function goNext() {
+    if (going) return;
+    going = true;
+    title.style.opacity = '0';
+    title.style.transform = 'translateY(-12px)';
+    board.style.opacity = '0';
+    board.style.transform = 'translateY(18px)';
+    sessionStorage.setItem('fromSixth', '1');
+    setTimeout(function () { window.location.href = 'seventh.html'; }, 420);
+  }
+
+  function goPrev() {
+    if (going) return;
+    going = true;
+    document.body.style.transition = 'opacity 300ms ease';
+    document.body.style.opacity = '0';
+    setTimeout(function () { window.location.href = 'fifth.html'; }, 320);
+  }
+
+  document.addEventListener('click', function (e) {
+    var navBtn = e.target.closest && e.target.closest('.nav-btn');
+    if (navBtn) {
+      if (navBtn.id === 'nav-prev') goPrev();
+      else if (navBtn.id === 'nav-next') goNext();
+      return;
+    }
+    goNext();
+  });
+})();
+</script>
+
+<button class="nav-btn nav-btn--prev" id="nav-prev" aria-label="이전 슬라이드">‹</button>
+<button class="nav-btn nav-btn--next" id="nav-next" aria-label="다음 슬라이드">›</button>
+</body>
+</html>

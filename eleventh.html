@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LENTOT — 초기 투자비 시뮬레이션</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    display: flex; flex-direction: column;
+    height: 100%; overflow: hidden;
+    background: #07091A; color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .bg-blob { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; }
+  .bg-blob-1 {
+    width: 560px; height: 560px;
+    background: radial-gradient(circle, rgba(158,123,53,0.26) 0%, transparent 70%);
+    top: -180px; left: -120px; filter: blur(82px);
+    animation: blob1 24s ease-in-out infinite;
+  }
+  .bg-blob-2 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(41,137,95,0.24) 0%, transparent 70%);
+    bottom: -145px; right: -110px; filter: blur(86px);
+    animation: blob2 30s ease-in-out infinite;
+  }
+  .bg-blob-3 {
+    width: 360px; height: 360px;
+    background: radial-gradient(circle, rgba(130,34,44,0.16) 0%, transparent 70%);
+    top: 48%; left: 28%; filter: blur(76px);
+    animation: blob3 22s ease-in-out infinite;
+  }
+  @keyframes blob1 { 0%,100%{transform:translate(0,0)} 33%{transform:translate(90px,70px)} 66%{transform:translate(-50px,130px)} }
+  @keyframes blob2 { 0%,100%{transform:translate(0,0)} 40%{transform:translate(-110px,-90px)} 70%{transform:translate(70px,-130px)} }
+  @keyframes blob3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-90px,-60px)} }
+
+  /* ── AGENDA STRIP ── */
+  .agenda-strip {
+    position: relative; z-index: 1;
+    height: 44px; flex-shrink: 0; display: flex;
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    opacity: 0; transition: opacity 200ms ease;
+  }
+  .agenda-strip.visible { opacity: 1; }
+  .strip-item {
+    flex: 1; height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2px; padding: 0 4px;
+    border-right: 1px solid rgba(255,255,255,0.05); overflow: hidden;
+  }
+  .strip-item:last-child { border-right: 0; }
+  .strip-item.active {
+    background: rgba(158,123,53,0.13); border-bottom: 2px solid #C4973F;
+    animation: activePulse 1800ms ease-in-out infinite;
+  }
+  @keyframes activePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.035)} }
+  .strip-num { font-size: 11px; font-weight: 800; letter-spacing: 0.05em; color: rgba(255,255,255,0.28); }
+  .strip-label { max-width: 100%; color: rgba(255,255,255,0.2); font-size: 9px; font-weight: 650; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .strip-item.active .strip-num { color: #C4973F; }
+  .strip-item.active .strip-label { color: rgba(196,151,63,0.78); }
+
+  /* ── outer slide ── */
+  .slide {
+    position: relative; z-index: 1;
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+    padding: 24px 52px 34px;
+    gap: 22px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    flex-shrink: 0;
+    opacity: 0; transform: translateY(14px);
+    transition: opacity 450ms ease, transform 450ms ease;
+  }
+  header.visible { opacity: 1; transform: translateY(0); }
+
+  .kicker {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 800;
+    letter-spacing: 0.24em; text-transform: uppercase;
+    color: #D7AF5B; margin-bottom: 10px;
+  }
+  .kicker-dot {
+    display: none;
+  }
+  .slide-title {
+    font-size: 58px; font-weight: 850;
+    letter-spacing: -0.035em; line-height: 1.02; margin-bottom: 5px; color: #fff;
+  }
+  .slide-sub {
+    font-size: 18px; font-weight: 500;
+    color: rgba(215,225,244,0.6); letter-spacing: -0.01em;
+  }
+
+  /* ── MAIN GRID ── */
+  .main-grid {
+    flex: 1; min-height: 0;
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 52px;
+  }
+  @media (max-width: 900px) {
+    html, body { overflow: auto; }
+    .main-grid { grid-template-columns: 1fr; }
+    .slide { padding: 28px 28px 28px; }
+  }
+
+  /* ─────────────── LEFT PANEL ─────────────── */
+  .ctrl-panel {
+    display: flex; flex-direction: column; gap: 20px; min-height: 0;
+    background: rgba(255,255,255,0.07);
+    backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 18px;
+    padding: 26px 32px;
+    box-shadow: 0 18px 52px rgba(0,0,0,0.28);
+  }
+
+  .preset-section-label {
+    font-size: 12px; font-weight: 800;
+    letter-spacing: 0.14em; color: rgba(215,225,244,0.56);
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  .preset-group { display: flex; gap: 8px; }
+  .preset-btn {
+    padding: 9px 22px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6);
+    font-size: 14px; font-weight: 680;
+    cursor: pointer; font-family: inherit;
+    letter-spacing: -0.01em;
+    transition: background 140ms, color 140ms, border-color 140ms;
+  }
+  .preset-btn:hover { border-color: rgba(215,175,91,0.5); color: #fff; background: rgba(255,255,255,0.1); }
+  .preset-btn.selected { background: rgba(215,175,91,0.16); color: #D7AF5B; border-color: rgba(215,175,91,0.36); }
+  .preset-btn:focus-visible { outline: 2px solid #D7AF5B; outline-offset: 3px; }
+
+  /* divider */
+  .ctrl-divider {
+    height: 1px; background: rgba(255,255,255,0.1); flex-shrink: 0;
+  }
+
+  /* sliders */
+  .sliders-list {
+    display: flex; flex-direction: column; gap: 18px;
+    flex: 1; min-height: 0; justify-content: center;
+  }
+  .slider-item { display: flex; flex-direction: column; gap: 9px; }
+  .slider-row {
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 10px;
+  }
+  .slider-name-block { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .slider-name {
+    font-size: 15px; font-weight: 700; white-space: nowrap; color: #fff;
+  }
+  .slider-tag {
+    font-size: 11px; font-weight: 700;
+    color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.1);
+    padding: 3px 10px; border-radius: 999px;
+    letter-spacing: 0.02em; white-space: nowrap;
+  }
+  .slider-val {
+    font-size: 16px; font-weight: 800;
+    color: #D7AF5B; font-variant-numeric: tabular-nums;
+    white-space: nowrap; min-width: 72px; text-align: right;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 4px; border-radius: 999px;
+    background: linear-gradient(to right, #D7AF5B var(--fp,33.3%), rgba(255,255,255,0.15) var(--fp,33.3%));
+    cursor: pointer; outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #D7AF5B; cursor: pointer; border: none;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    transition: transform 100ms ease, box-shadow 100ms ease;
+  }
+  input[type="range"]:hover::-webkit-slider-thumb {
+    transform: scale(1.14); box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #D7AF5B; cursor: pointer; border: none;
+  }
+  input[type="range"]:focus-visible::-webkit-slider-thumb {
+    outline: 2.5px solid #D7AF5B; outline-offset: 3px;
+  }
+
+  /* fixed note */
+  .fixed-note {
+    font-size: 13px; color: rgba(215,225,244,0.5);
+    line-height: 1.7; flex-shrink: 0;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .fixed-note-title {
+    font-size: 11px; font-weight: 800;
+    letter-spacing: 0.12em; color: rgba(215,225,244,0.7);
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+
+  /* ─────────────── RIGHT PANEL ─────────────── */
+  .result-panel {
+    display: flex; flex-direction: column; gap: 20px;
+    min-height: 0;
+  }
+
+  /* big stats */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    flex-shrink: 0;
+  }
+  .stat-box {
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 18px; padding: 20px 24px;
+    background: rgba(255,255,255,0.07);
+    box-shadow: 0 18px 52px rgba(0,0,0,0.28);
+    backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+  }
+  .stat-lbl {
+    font-size: 12px; font-weight: 800;
+    letter-spacing: 0.12em; color: rgba(215,225,244,0.56);
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  .stat-num {
+    font-size: 52px; font-weight: 850;
+    letter-spacing: -0.035em; line-height: 1.0;
+    font-variant-numeric: tabular-nums; color: #D7AF5B;
+  }
+  .stat-unit {
+    font-size: 16px; font-weight: 600;
+    color: rgba(255,255,255,0.6); margin-top: 4px;
+  }
+  .stat-sub-line {
+    font-size: 14px; color: rgba(215,225,244,0.5);
+    margin-top: 8px; font-variant-numeric: tabular-nums;
+  }
+
+  /* investment card */
+  .invest-card {
+    flex: 1; min-height: 0;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.07);
+    box-shadow: 0 18px 52px rgba(0,0,0,0.28);
+    backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    border-radius: 18px; padding: 26px 32px;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  .invest-head {
+    display: flex; align-items: center;
+    justify-content: space-between; flex-shrink: 0;
+  }
+  .invest-title {
+    font-size: 18px; font-weight: 800;
+    color: #fff; letter-spacing: -0.01em;
+  }
+  .savings-badge {
+    font-size: 14px; font-weight: 800; color: #48D597;
+    background: rgba(72,213,151,0.15); padding: 5px 16px;
+    border: 1px solid rgba(72,213,151,0.3);
+    border-radius: 999px; font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* bars */
+  .bar-rows {
+    flex: 1; display: flex; flex-direction: column;
+    gap: 18px; justify-content: center;
+  }
+  .bar-row { display: flex; flex-direction: column; gap: 8px; }
+  .bar-meta {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .bar-lbl {
+    font-size: 15px; font-weight: 700;
+    color: rgba(255,255,255,0.85);
+  }
+  .bar-amnt {
+    font-size: 20px; font-weight: 820;
+    color: #fff; font-variant-numeric: tabular-nums;
+  }
+  .bar-track {
+    height: 42px; border-radius: 10px;
+    background: rgba(255,255,255,0.06); overflow: hidden;
+    position: relative;
+  }
+  .bfill-b2c {
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.2); border-radius: 10px;
+  }
+  .bfill-b2b {
+    position: absolute; top: 0; left: 0; bottom: 0;
+    background: linear-gradient(90deg, #D7AF5B, #E8C977); border-radius: 10px;
+    transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bfill-b2b { transition: none; }
+  }
+
+  /* nav buttons */
+  .nav-btn {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    z-index: 1000; width: 52px; height: 52px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    color: rgba(255,255,255,0.5); font-size: 26px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; outline: none; font-family: inherit;
+    transition: background 200ms ease, color 200ms ease, border-color 200ms ease, transform 200ms ease;
+  }
+  .nav-btn:hover {
+    background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(215,175,91,0.5);
+    transform: translateY(-50%) scale(1.1);
+  }
+  .nav-btn:focus-visible { outline: 2px solid #D7AF5B; outline-offset: 3px; }
+  .nav-btn--prev { left: 20px; }
+  .nav-btn--next { right: 20px; }
+</style>
+</head>
+<body>
+
+<div class="bg-blob bg-blob-1"></div>
+<div class="bg-blob bg-blob-2"></div>
+<div class="bg-blob bg-blob-3"></div>
+
+<nav class="agenda-strip" id="agenda-strip">
+  <div class="strip-item"><span class="strip-num">01</span><span class="strip-label">문제 정의</span></div>
+  <div class="strip-item"><span class="strip-num">02</span><span class="strip-label">고객 탐색</span></div>
+  <div class="strip-item"><span class="strip-num">03</span><span class="strip-label">인터뷰 검증</span></div>
+  <div class="strip-item"><span class="strip-num">04</span><span class="strip-label">솔루션 &amp; 가치</span></div>
+  <div class="strip-item"><span class="strip-num">05</span><span class="strip-label">경쟁 분석</span></div>
+  <div class="strip-item active"><span class="strip-num">06</span><span class="strip-label">수익 구조</span></div>
+  <div class="strip-item"><span class="strip-num">07</span><span class="strip-label">향후 계획</span></div>
+</nav>
+
+<div class="slide" id="slide">
+
+  <!-- HEADER -->
+  <header>
+    <div class="kicker">
+      <span class="kicker-dot"></span>
+      LIVE SIMULATION &nbsp;·&nbsp; OSAKA NO.1
+    </div>
+    <h1 class="slide-title">초기 투자비 시뮬레이션</h1>
+    <p class="slide-sub">가정을 바꾸면 사업 숫자가 어떻게 움직일까?</p>
+  </header>
+
+  <div class="main-grid">
+
+    <!-- ════ LEFT: CONTROLS ════ -->
+    <section class="ctrl-panel" aria-label="시뮬레이션 컨트롤">
+
+      <!-- presets -->
+      <div>
+        <div class="preset-section-label">시나리오 프리셋</div>
+        <div class="preset-group" role="group" aria-label="시나리오 프리셋 선택">
+          <button class="preset-btn" id="btn-conservative" type="button">보수적</button>
+          <button class="preset-btn selected" id="btn-base" type="button">기준</button>
+          <button class="preset-btn" id="btn-optimistic" type="button">낙관적</button>
+        </div>
+      </div>
+
+      <div class="ctrl-divider"></div>
+
+      <!-- sliders -->
+      <div class="sliders-list">
+
+        <div class="slider-item">
+          <div class="slider-row">
+            <div class="slider-name-block">
+              <span class="slider-name">서비스 인지율</span>
+              <span class="slider-tag">마케팅 가정</span>
+            </div>
+            <span class="slider-val" id="lbl-awareness">10%</span>
+          </div>
+          <input type="range" id="sl-awareness"
+            min="1" max="30" step="1" value="10"
+            aria-label="서비스 인지율 1~30퍼센트">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-row">
+            <div class="slider-name-block">
+              <span class="slider-name">실제 전환율</span>
+              <span class="slider-tag">마케팅 가정</span>
+            </div>
+            <span class="slider-val" id="lbl-conversion">10%</span>
+          </div>
+          <input type="range" id="sl-conversion"
+            min="1" max="30" step="1" value="10"
+            aria-label="실제 전환율 1~30퍼센트">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-row">
+            <div class="slider-name-block">
+              <span class="slider-name">B2B 협찬 비율</span>
+              <span class="slider-tag">전략 레버</span>
+            </div>
+            <span class="slider-val" id="lbl-b2b">70%</span>
+          </div>
+          <input type="range" id="sl-b2b"
+            min="0" max="90" step="5" value="70"
+            aria-label="B2B 협찬 비율 0~90퍼센트">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-row">
+            <div class="slider-name-block">
+              <span class="slider-name">1회 렌탈가</span>
+              <span class="slider-tag">가격 레버</span>
+            </div>
+            <span class="slider-val" id="lbl-price">50,000원</span>
+          </div>
+          <input type="range" id="sl-price"
+            min="30000" max="80000" step="5000" value="50000"
+            aria-label="1회 렌탈가 30000원에서 80000원">
+        </div>
+
+      </div>
+
+      <!-- fixed assumptions footnote -->
+      <div class="fixed-note" aria-label="고정 가정값 (조정 불가)">
+        <div class="fixed-note-title">고정 가정 · 조정 불가</div>
+        오사카 월 한국인 방문객 250,000명 &middot; 2030 비율 60% &middot; 자유여행 80%
+        &middot; 평균 코디 3개 &middot; 회전율 6회/월 &middot; 안전재고 20%
+        &middot; 코디 원가 55,000원 &middot; 세탁단가 3,000원
+      </div>
+
+    </section>
+
+    <!-- ════ RIGHT: RESULTS ════ -->
+    <section class="result-panel" aria-live="polite" aria-label="시뮬레이션 결과">
+
+      <!-- 3 big stats -->
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-lbl">월 예상 이용자</div>
+          <div class="stat-num" id="st-users">1,200</div>
+          <div class="stat-unit">명</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-lbl">필요 초기 재고</div>
+          <div class="stat-num" id="st-stock">720</div>
+          <div class="stat-unit">세트</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-lbl">월 예상 매출</div>
+          <div class="stat-num" id="st-revenue">6,000</div>
+          <div class="stat-unit">만원</div>
+          <div class="stat-sub-line">월 세탁비 <span id="st-laundry">1,080</span>만원</div>
+        </div>
+      </div>
+
+      <!-- investment comparison -->
+      <div class="invest-card">
+        <div class="invest-head">
+          <span class="invest-title">초기 의류 투자비</span>
+          <span class="savings-badge">협찬으로 <span id="st-savings">2,772</span>만원 절감</span>
+        </div>
+        <div class="bar-rows">
+          <div class="bar-row">
+            <div class="bar-meta">
+              <span class="bar-lbl">B2C 단독 구매</span>
+              <span class="bar-amnt"><span id="st-b2c">3,960</span>만원</span>
+            </div>
+            <div class="bar-track">
+              <div class="bfill-b2c"></div>
+            </div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-meta">
+              <span class="bar-lbl">B2B 협찬 적용</span>
+              <span class="bar-amnt"><span id="st-b2b">1,188</span>만원</span>
+            </div>
+            <div class="bar-track">
+              <div class="bfill-b2b" id="b2b-bar" style="width:30%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </div>
+</div>
+
+<button class="nav-btn nav-btn--prev" id="nav-prev" type="button" aria-label="이전 슬라이드">‹</button>
+<button class="nav-btn nav-btn--next" id="nav-next" type="button" aria-label="다음 슬라이드">›</button>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── CONSTANTS ── */
+  var FIXED = { visitors: 250000, ratio2030: 0.6, freeTravel: 0.8, codiPerUser: 3, rotation: 6, safetyStock: 1.2, codiCost: 55000, laundryCost: 3000 };
+  var PRESETS = {
+    conservative: { awareness: 5,  conversion: 5,  b2b: 30, price: 45000 },
+    base:         { awareness: 10, conversion: 10, b2b: 70, price: 50000 },
+    optimistic:   { awareness: 15, conversion: 15, b2b: 80, price: 55000 }
+  };
+  var DURATION = 450;
+  var reduced  = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── STATE ── */
+  var state = { awareness: 10, conversion: 10, b2b: 70, price: 50000 };
+
+  /* displayed (interpolated) values */
+  var disp = { users: 0, stock: 0, revenue: 0, laundry: 0, b2c: 0, b2b2: 0, savings: 0 };
+  var animIds = {};
+
+  /* ── COMPUTE ── */
+  function compute(s) {
+    var users   = Math.round(FIXED.visitors * FIXED.ratio2030 * FIXED.freeTravel * s.awareness / 100 * s.conversion / 100);
+    var codi    = users * FIXED.codiPerUser;
+    var stock   = Math.ceil(codi / FIXED.rotation * FIXED.safetyStock);
+    var revenue = users * s.price;
+    var laundry = codi * FIXED.laundryCost;
+    var b2cWon  = stock * FIXED.codiCost;
+    var b2bWon  = b2cWon * (1 - s.b2b / 100);
+    var savings = b2cWon - b2bWon;
+    return {
+      users:   users,
+      stock:   stock,
+      revenue: Math.round(revenue / 10000),
+      laundry: Math.round(laundry / 10000),
+      b2c:     Math.round(b2cWon  / 10000),
+      b2b2:    Math.round(b2bWon  / 10000),
+      savings: Math.round(savings / 10000)
+    };
+  }
+
+  /* ── COUNT-UP TWEEN ── */
+  function tweenTo(key, target, el) {
+    if (animIds[key]) cancelAnimationFrame(animIds[key]);
+    var from      = disp[key];
+    var startTime = null;
+
+    if (reduced) {
+      disp[key] = target;
+      el.textContent = target.toLocaleString('ko-KR');
+      return;
+    }
+    function step(ts) {
+      if (!startTime) startTime = ts;
+      var t     = Math.min((ts - startTime) / DURATION, 1);
+      var eased = 1 - Math.pow(1 - t, 3);
+      var cur   = from + (target - from) * eased;
+      disp[key] = cur;
+      el.textContent = Math.round(cur).toLocaleString('ko-KR');
+      if (t < 1) {
+        animIds[key] = requestAnimationFrame(step);
+      } else {
+        disp[key] = target;
+        el.textContent = target.toLocaleString('ko-KR');
+      }
+    }
+    animIds[key] = requestAnimationFrame(step);
+  }
+
+  /* ── UPDATE ALL RESULTS ── */
+  function updateResults() {
+    var r = compute(state);
+    tweenTo('users',   r.users,   document.getElementById('st-users'));
+    tweenTo('stock',   r.stock,   document.getElementById('st-stock'));
+    tweenTo('revenue', r.revenue, document.getElementById('st-revenue'));
+    tweenTo('laundry', r.laundry, document.getElementById('st-laundry'));
+    tweenTo('b2c',     r.b2c,     document.getElementById('st-b2c'));
+    tweenTo('b2b2',    r.b2b2,    document.getElementById('st-b2b'));
+    tweenTo('savings', r.savings, document.getElementById('st-savings'));
+
+    /* B2B bar width = portion NOT covered by sponsorship */
+    document.getElementById('b2b-bar').style.width = ((1 - state.b2b / 100) * 100).toFixed(2) + '%';
+  }
+
+  /* ── SLIDER FILL TRACK ── */
+  function setTrack(el, min, max) {
+    var pct = ((el.value - min) / (max - min) * 100).toFixed(2) + '%';
+    el.style.setProperty('--fp', pct);
+  }
+  function syncAllTracks() {
+    setTrack(document.getElementById('sl-awareness'),  1,     30);
+    setTrack(document.getElementById('sl-conversion'), 1,     30);
+    setTrack(document.getElementById('sl-b2b'),        0,     90);
+    setTrack(document.getElementById('sl-price'),      30000, 80000);
+  }
+
+  /* ── PRESET BUTTONS ── */
+  function applyPreset(key) {
+    var p = PRESETS[key];
+    state.awareness  = p.awareness;
+    state.conversion = p.conversion;
+    state.b2b        = p.b2b;
+    state.price      = p.price;
+
+    document.getElementById('sl-awareness').value  = p.awareness;
+    document.getElementById('sl-conversion').value = p.conversion;
+    document.getElementById('sl-b2b').value        = p.b2b;
+    document.getElementById('sl-price').value      = p.price;
+
+    syncAllLabels();
+    syncAllTracks();
+
+    Object.keys(PRESETS).forEach(function (k) {
+      document.getElementById('btn-' + k).classList.toggle('selected', k === key);
+    });
+
+    updateResults();
+  }
+
+  function syncAllLabels() {
+    document.getElementById('lbl-awareness').textContent  = state.awareness + '%';
+    document.getElementById('lbl-conversion').textContent = state.conversion + '%';
+    document.getElementById('lbl-b2b').textContent        = state.b2b + '%';
+    document.getElementById('lbl-price').textContent      = state.price.toLocaleString('ko-KR') + '원';
+  }
+
+  /* ── SLIDER EVENTS ── */
+  function bindSlider(id, prop, lblId, min, max, fmt) {
+    var el  = document.getElementById(id);
+    var lbl = document.getElementById(lblId);
+    el.addEventListener('input', function () {
+      state[prop] = Number(el.value);
+      lbl.textContent = fmt(state[prop]);
+      setTrack(el, min, max);
+      /* deselect all presets on manual change */
+      Object.keys(PRESETS).forEach(function (k) {
+        document.getElementById('btn-' + k).classList.remove('selected');
+      });
+      updateResults();
+    });
+    /* prevent slide-deck arrow-key conflict */
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') e.stopPropagation();
+    });
+  }
+
+  bindSlider('sl-awareness',  'awareness',  'lbl-awareness',  1,     30,    function (v) { return v + '%'; });
+  bindSlider('sl-conversion', 'conversion', 'lbl-conversion', 1,     30,    function (v) { return v + '%'; });
+  bindSlider('sl-b2b',        'b2b',        'lbl-b2b',        0,     90,    function (v) { return v + '%'; });
+  bindSlider('sl-price',      'price',      'lbl-price',      30000, 80000, function (v) { return v.toLocaleString('ko-KR') + '원'; });
+
+  /* preset click handlers */
+  Object.keys(PRESETS).forEach(function (key) {
+    document.getElementById('btn-' + key).addEventListener('click', function () { applyPreset(key); });
+  });
+
+  /* ── NAVIGATION & ANIMATION ── */
+  var strip = document.getElementById('agenda-strip');
+  var header = document.querySelector('header');
+  var mainGrid = document.querySelector('.main-grid');
+  var fromTenth = sessionStorage.getItem('fromTenth') === '1';
+  sessionStorage.removeItem('fromTenth');
+
+  strip.classList.add('visible');
+  setTimeout(function () { header.classList.add('visible'); }, fromTenth ? 120 : 0);
+  setTimeout(function () { mainGrid.classList.add('visible'); }, fromTenth ? 260 : 0);
+
+  var going = false;
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest && e.target.closest('.nav-btn');
+    if (!btn) return;
+    if (going) return;
+    going = true;
+
+    header.style.opacity = '0';
+    header.style.transform = 'translateY(-12px)';
+    mainGrid.style.opacity = '0';
+    mainGrid.style.transform = 'translateY(18px)';
+
+    if (btn.id === 'nav-prev') {
+      document.body.style.transition = 'opacity 300ms ease';
+      document.body.style.opacity = '0';
+      setTimeout(function () { window.location.href = 'tenth.html'; }, 320);
+    } else if (btn.id === 'nav-next') {
+      sessionStorage.setItem('fromEleventh', '1');
+      setTimeout(function () { window.location.href = 'twelfth.html'; }, 420);
+    }
+  });
+
+  /* ── INIT ── */
+  applyPreset('base');
+
+})();
+</script>
+</body>
+</html>

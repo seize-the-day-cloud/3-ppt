@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lentot – 민지의 이야기</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%; overflow: hidden;
+    background: #07091A; color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── aurora blobs ── */
+  .bg-blob { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; }
+  .bg-blob-1 {
+    width: 560px; height: 560px;
+    background: radial-gradient(circle, rgba(158,123,53,0.26) 0%, transparent 70%);
+    top: -180px; left: -120px; filter: blur(80px);
+    animation: blob1 24s ease-in-out infinite;
+  }
+  .bg-blob-2 {
+    width: 480px; height: 480px;
+    background: radial-gradient(circle, rgba(30,60,140,0.30) 0%, transparent 70%);
+    bottom: -120px; right: -100px; filter: blur(80px);
+    animation: blob2 30s ease-in-out infinite;
+  }
+  .bg-blob-3 {
+    width: 360px; height: 360px;
+    background: radial-gradient(circle, rgba(158,123,53,0.16) 0%, transparent 70%);
+    top: 45%; left: 58%; filter: blur(70px);
+    animation: blob3 20s ease-in-out infinite;
+  }
+  @keyframes blob1 { 0%,100%{transform:translate(0,0)} 33%{transform:translate(90px,70px)} 66%{transform:translate(-50px,130px)} }
+  @keyframes blob2 { 0%,100%{transform:translate(0,0)} 40%{transform:translate(-110px,-90px)} 70%{transform:translate(70px,-130px)} }
+  @keyframes blob3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-120px,-70px)} }
+
+  /* ── flying circle (index → this page transition) ── */
+  #fly-head {
+    position: fixed; border-radius: 50%; background: #D7AF5B;
+    z-index: 9999; pointer-events: none;
+    top: -200px; left: -200px; width: 55px; height: 55px;
+    will-change: top, left, width, height;
+  }
+
+  /* ── OUTER LAYOUT ── */
+  .page {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column;
+    height: 100vh; padding: 28px 52px 28px 52px;
+    gap: 16px;
+    opacity: 0; transform: translateY(16px);
+    transition: opacity 500ms ease, transform 500ms ease;
+  }
+  .page.visible { opacity: 1; transform: translateY(0); }
+
+  /* ── TITLE ── */
+  .page-title {
+    text-align: center; flex-shrink: 0;
+  }
+  .page-title h1 {
+    display: inline-block;
+    font-size: 54px; font-weight: 850;
+    letter-spacing: -0.03em; line-height: 1.1; color: #fff;
+  }
+  .page-title h1 .heart { color: #D7AF5B; }
+
+  /* ── MAIN SPLIT ── */
+  .main-split {
+    flex: 1; min-height: 0;
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 32px;
+  }
+
+  /* ── LEFT: CHARACTER PANEL ── */
+  .char-panel {
+    display: flex; flex-direction: column;
+    background: rgba(215,175,91,0.06);
+    border: 1px solid rgba(215,175,91,0.2);
+    border-radius: 24px;
+    padding: 30px 28px 26px;
+    position: relative; overflow: hidden;
+  }
+  .char-panel::before {
+    content: ''; position: absolute;
+    top: 0; left: 10%; width: 80%; height: 3px;
+    background: linear-gradient(90deg, transparent, #D7AF5B, transparent);
+  }
+
+  .char-name-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(215,175,91,0.12);
+    border: 1px solid rgba(215,175,91,0.3);
+    border-radius: 999px;
+    padding: 6px 16px 6px 12px;
+    font-size: 14px; font-weight: 800;
+    letter-spacing: 0.14em; color: #D7AF5B;
+    margin-bottom: 18px; align-self: flex-start;
+  }
+  .char-name-badge::before {
+    content: ''; width: 7px; height: 7px;
+    border-radius: 50%; background: #D7AF5B; flex-shrink: 0;
+  }
+
+  .char-figure {
+    flex: 1; min-height: 0;
+    position: relative;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+
+  .char-image {
+    width: 100%; max-width: 260px; max-height: 45vh; object-fit: contain;
+    animation: floatImg 4s ease-in-out infinite;
+    filter: drop-shadow(0 0 20px rgba(215,175,91,0.2));
+    margin-bottom: 16px;
+  }
+  @keyframes floatImg {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  /* floating deco elements */
+  .deco { position: absolute; font-size: 18px; opacity: 0.6; animation: floatDeco 4s ease-in-out infinite; }
+  .deco-1 { top: 12px; left: 14px; animation-delay: 0s; }
+  .deco-2 { top: 18px; right: 10px; font-size: 14px; animation-delay: 1.2s; }
+  .deco-3 { bottom: 80px; left: 8px; font-size: 16px; animation-delay: 2.1s; }
+  @keyframes floatDeco {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+  }
+
+  /* handwritten quote */
+  .char-quote {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-top: 14px;
+  }
+  .char-quote-text {
+    font-size: 16px; font-weight: 600; font-style: italic;
+    color: rgba(255,255,255,0.75); line-height: 1.55;
+    word-break: keep-all; text-align: center;
+  }
+  .char-quote-text .heart { color: #D7AF5B; }
+
+  /* ── RIGHT: CONTENT PANEL ── */
+  .content-col {
+    display: flex; flex-direction: column;
+    gap: 12px; min-height: 0;
+  }
+
+  /* 4 trait cards */
+  .trait-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    flex-shrink: 0;
+  }
+  .trait-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 20px 16px;
+    text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  .trait-card:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(215,175,91,0.22);
+  }
+  .t-icon { font-size: 36px; line-height: 1; }
+  .t-title { font-size: 16px; font-weight: 800; color: #D7AF5B; letter-spacing: -0.01em; }
+  .t-desc { font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.55); line-height: 1.45; word-break: keep-all; }
+
+  /* bridge text */
+  .bridge {
+    background: rgba(255,255,255,0.04);
+    border-left: 3px solid rgba(215,175,91,0.5);
+    border-radius: 0 10px 10px 0;
+    padding: 18px 24px;
+    font-size: 18px; font-weight: 500;
+    color: rgba(255,255,255,0.75); line-height: 1.65;
+    word-break: keep-all; flex-shrink: 0;
+  }
+  .bridge strong { color: #fff; font-weight: 800; }
+
+  /* staggered entrance animation */
+  .stagger-item {
+    opacity: 0; transform: translateY(20px);
+    transition: opacity 600ms ease, transform 600ms ease;
+  }
+  .page.visible .stagger-item { opacity: 1; transform: translateY(0); }
+  .page.visible .stagger-item:nth-child(1) { transition-delay: 150ms; }
+  .page.visible .stagger-item:nth-child(2) { transition-delay: 300ms; }
+  .page.visible .stagger-item:nth-child(3) { transition-delay: 450ms; }
+  .page.visible .stagger-item:nth-child(4) { transition-delay: 600ms; }
+
+  /* 3 pain cards */
+  .pain-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    flex: 1; min-height: 0;
+  }
+  .pain-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 24px 20px;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 14px; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .pain-card::before {
+    content: ''; position: absolute;
+    bottom: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(215,175,91,0.4), transparent);
+  }
+  .p-icon { font-size: 42px; }
+  .p-desc {
+    font-size: 16px; font-weight: 600;
+    color: rgba(255,255,255,0.7); line-height: 1.5;
+    word-break: keep-all;
+  }
+  .p-desc strong { color: rgba(215,175,91,0.9); }
+
+  /* quote block */
+  .quote-section { flex-shrink: 0; }
+  .quote-lead {
+    font-size: 15px; font-weight: 700;
+    color: rgba(255,255,255,0.4); letter-spacing: 0.06em;
+    margin-bottom: 12px;
+  }
+  .quote-box {
+    background: rgba(215,175,91,0.08);
+    border: 1px solid rgba(215,175,91,0.3);
+    border-radius: 14px;
+    padding: 20px 32px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .quote-box::before {
+    content: '"';
+    position: absolute; left: 16px; top: 6px;
+    font-size: 48px; font-weight: 850; line-height: 1;
+    color: rgba(215,175,91,0.25);
+    font-family: Georgia, serif;
+  }
+  .quote-text {
+    font-size: 28px; font-weight: 850;
+    letter-spacing: -0.025em; color: #fff;
+    text-align: center; word-break: keep-all;
+  }
+  .quote-text em {
+    font-style: normal; color: #D7AF5B;
+  }
+
+  /* ── NAV BUTTONS ── */
+  .nav-btn {
+    position: fixed; top: 50%; transform: translateY(-50%); z-index: 1000;
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+    color: rgba(255,255,255,0.5); font-size: 26px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 200ms ease;
+  }
+  .nav-btn:hover {
+    background: rgba(255,255,255,0.12); color: #fff;
+    border-color: rgba(215,175,91,0.5);
+    transform: translateY(-50%) scale(1.1);
+  }
+  .nav-btn--prev { left: 20px; }
+  .nav-btn--next { right: 20px; }
+</style>
+</head>
+<body>
+
+<div class="bg-blob bg-blob-1"></div>
+<div class="bg-blob bg-blob-2"></div>
+<div class="bg-blob bg-blob-3"></div>
+
+<div id="fly-head"></div>
+
+<div class="page" id="page">
+
+  <!-- TITLE -->
+  <div class="page-title">
+    <h1>아주 평범한 21세, '민지' <span class="heart">🤍</span></h1>
+  </div>
+
+  <div class="main-split">
+
+    <!-- LEFT: CHARACTER -->
+    <div class="char-panel">
+      <div class="char-name-badge">PERSONA · 민지</div>
+
+      <div class="char-figure">
+        <span class="deco deco-1">✈️</span>
+        <span class="deco deco-2">🤍</span>
+        <span class="deco deco-3">⭐</span>
+
+        <img src="love.png" class="char-image" alt="민지">
+      </div>
+
+      <div class="char-quote">
+        <p class="char-quote-text">
+          "여행은 나에게<br>가장 설레는 순간이야."<br>
+          <span class="heart">♡</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- RIGHT: CONTENT -->
+    <div class="content-col">
+
+      <!-- 4 trait cards -->
+      <div class="trait-grid stagger-item">
+        <div class="trait-card">
+          <div class="t-icon">✈️</div>
+          <div class="t-title">여행을 좋아해요</div>
+          <div class="t-desc">새로운 장소를 가는<br>설렘을 가장 좋아해요.</div>
+        </div>
+        <div class="trait-card">
+          <div class="t-icon">📸</div>
+          <div class="t-title">사진 찍는 걸 좋아해요</div>
+          <div class="t-desc">예쁜 사진을 남겨<br>추억을 기록해요.</div>
+        </div>
+        <div class="trait-card">
+          <div class="t-icon">🗺️</div>
+          <div class="t-title">새로운 경험을 좋아해요</div>
+          <div class="t-desc">낯선 문화, 음식, 사람들...<br>모든 게 즐거워요.</div>
+        </div>
+        <div class="trait-card">
+          <div class="t-icon">🛍️</div>
+          <div class="t-title">쇼핑도 빼놓을 수 없죠!</div>
+          <div class="t-desc">여행의 추억을<br>선물로 간직하고 싶어요.</div>
+        </div>
+      </div>
+
+      <!-- bridge paragraph -->
+      <div class="bridge stagger-item">
+        여행을 좋아하고, 사진을 좋아하고, 새로운 경험을 좋아하는 <strong>평범한 20대</strong>입니다.<br>
+        하지만 여행을 준비할 때마다 <strong>옷 때문에 고민</strong>합니다.
+      </div>
+
+      <!-- 3 pain cards -->
+      <div class="pain-grid stagger-item">
+        <div class="pain-card">
+          <div class="p-icon">🧥</div>
+          <div class="p-desc">예쁜 사진을 남기고 싶지만<br><strong>짐은 늘어나고,</strong></div>
+        </div>
+        <div class="pain-card">
+          <div class="p-icon">🧳</div>
+          <div class="p-desc"><strong>수하물 비용</strong>은<br>부담되고,</div>
+        </div>
+        <div class="pain-card">
+          <div class="p-icon">🎁</div>
+          <div class="p-desc">기념품을 살 <strong>공간도<br>부족합니다.</strong></div>
+        </div>
+      </div>
+
+      <!-- closing quote -->
+      <div class="quote-section stagger-item">
+        <div class="quote-lead">민지는 이런 생각을 하나 합니다.</div>
+        <div class="quote-box">
+          <div class="quote-text">"짐이 없다면 여행이 <em>얼마나 편할까</em>?"</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<button class="nav-btn nav-btn--prev" id="nav-prev" aria-label="이전 슬라이드">‹</button>
+<button class="nav-btn nav-btn--next" id="nav-next" aria-label="다음 슬라이드">›</button>
+
+<script>
+(function () {
+  var flyHead = document.getElementById('fly-head');
+  var page    = document.getElementById('page');
+
+  var fromFirst   = sessionStorage.getItem('fromFirst') === '1';
+  var headRectStr = sessionStorage.getItem('headRect');
+  sessionStorage.removeItem('fromFirst');
+  sessionStorage.removeItem('headRect');
+
+  var DOT_SIZE = 20;
+
+  function getDotPos() {
+    var h1 = document.querySelector('.page-title h1');
+    var rect = h1.getBoundingClientRect();
+    var yOffset = page.classList.contains('visible') ? 0 : 16;
+    return {
+      top: rect.top - yOffset + (rect.height / 2) - (DOT_SIZE / 2),
+      left: rect.left - DOT_SIZE - 24
+    };
+  }
+
+  function revealContent() { page.classList.add('visible'); }
+
+  if (fromFirst && headRectStr) {
+    var r = JSON.parse(headRectStr);
+    flyHead.style.transition = 'none';
+    flyHead.style.top    = r.top    + 'px';
+    flyHead.style.left   = r.left   + 'px';
+    flyHead.style.width  = r.width  + 'px';
+    flyHead.style.height = r.height + 'px';
+
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        var targetPos = getDotPos();
+
+        flyHead.style.transition =
+          'top 900ms cubic-bezier(0.65,0,0.35,1), ' +
+          'left 900ms cubic-bezier(0.65,0,0.35,1), ' +
+          'width 900ms cubic-bezier(0.65,0,0.35,1), ' +
+          'height 900ms cubic-bezier(0.65,0,0.35,1)';
+        flyHead.style.top    = targetPos.top   + 'px';
+        flyHead.style.left   = targetPos.left + 'px';
+        flyHead.style.width  = DOT_SIZE  + 'px';
+        flyHead.style.height = DOT_SIZE  + 'px';
+        setTimeout(revealContent, 500);
+      });
+    });
+  } else {
+    var targetPos = getDotPos();
+    flyHead.style.transition = 'none';
+    flyHead.style.top    = targetPos.top   + 'px';
+    flyHead.style.left   = targetPos.left + 'px';
+    flyHead.style.width  = DOT_SIZE  + 'px';
+    flyHead.style.height = DOT_SIZE  + 'px';
+    revealContent();
+  }
+
+  window.addEventListener('resize', function () {
+    if (page.classList.contains('visible')) {
+      var targetPos = getDotPos();
+      flyHead.style.transition = 'none';
+      flyHead.style.top  = targetPos.top  + 'px';
+      flyHead.style.left = targetPos.left + 'px';
+    }
+  });
+
+  var going = false;
+
+  function goPrev() {
+    if (going) return; going = true;
+    document.body.style.transition = 'opacity 300ms ease';
+    document.body.style.opacity = '0';
+    setTimeout(function () { window.location.href = 'index.html'; }, 320);
+  }
+
+  function goNext() {
+    if (going) return; going = true;
+    var rect = flyHead.getBoundingClientRect();
+    sessionStorage.setItem('fromFirst', '1');
+    sessionStorage.setItem('headRect', JSON.stringify({
+      top: rect.top, left: rect.left,
+      width: rect.width, height: rect.height
+    }));
+    page.style.transition = 'opacity 300ms ease';
+    page.style.opacity = '0';
+    setTimeout(function () { window.location.href = 'second.html'; }, 320);
+  }
+
+  document.getElementById('nav-prev').addEventListener('click', goPrev);
+  document.getElementById('nav-next').addEventListener('click', goNext);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext();
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev();
+  });
+})();
+</script>
+</body>
+</html>
